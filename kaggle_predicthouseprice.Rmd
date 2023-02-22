@@ -87,16 +87,35 @@ knitr::opts_chunk$set(fig.align = 'center',
 ```
 
 
-## Problem 
+## Project aim
 
-
-
-## Solution
-
+This is a Kaggle competition project. The purpose of this project is to predict house prices in Ames, Iowa from available variables with machine learning algorithms.
 
 
 ## Procedure outline 
 
+0. Load libraries 
+1. Import and explore data 
+2. Explore some of the most important variables 
+3. Preprocess data 
+        - Missing data 
+        - Label encoding 
+        - Factorize variables 
+4. Visualize important variables 
+5. Find variables importance with Random Forest 
+6. Feature engineering 
+7. Prepare data for modeling 
+        - Drop highly correalted variables 
+        - Remove outliers
+        - Skewness and normalize numeric predictors
+        - Remove levels with few or no observatoins in train or test 
+8. Deal with skewness of response variable 
+9. Composing train and test sets 
+10. Modeling
+        - Lasso regression model 
+        - XGBoost model 
+        - Random forest 
+11. Evaluate performance
 
 
 ## R code
@@ -108,3 +127,4 @@ knitr::opts_chunk$set(fig.align = 'center',
 
 
 
+d 
