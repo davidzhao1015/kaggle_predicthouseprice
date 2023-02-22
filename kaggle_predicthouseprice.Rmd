@@ -22,7 +22,7 @@ output:
 editor_options: 
   markdown: 
     wrap: 72
-bibliography: references.bib
+# bibliography: references.bib
 ---
 
 <html>
@@ -86,40 +86,183 @@ knitr::opts_chunk$set(fig.align = 'center',
                       message=FALSE) #stop render when error occurs   
 ```
 
-
 ## Project aim
 
-This is a Kaggle competition project. The purpose of this project is to predict house prices in Ames, Iowa from available variables with machine learning algorithms.
+This is a Kaggle competition project. The purpose of this project is to
+predict house prices in Ames, Iowa from available variables with machine
+learning algorithms.
 
+Personal learning purpose: - Refresh machine learning knowledge -
+Practice using caret package and workflow - Learn advanced feature
+engineering - Learn math and principles for algorithms
 
-## Procedure outline 
+## Workflow
 
-0. Load libraries 
-1. Import and explore data 
-2. Explore some of the most important variables 
-3. Preprocess data 
-        - Missing data 
-        - Label encoding 
-        - Factorize variables 
-4. Visualize important variables 
-5. Find variables importance with Random Forest 
-6. Feature engineering 
-7. Prepare data for modeling 
-        - Drop highly correalted variables 
-        - Remove outliers
-        - Skewness and normalize numeric predictors
-        - Remove levels with few or no observatoins in train or test 
-8. Deal with skewness of response variable 
-9. Composing train and test sets 
-10. Modeling
-        - Lasso regression model 
-        - XGBoost model 
-        - Random forest 
-11. Evaluate performance
+Follow the machine learning workflow of caret R package.
 
+0.  Load libraries
+1.  Import data
+2.  Exploratory data analysis
+3.  Preprocess data - Create dummy variables - Zero- and near
+    zero-variance - Impute missing data - Label encoding - Drop highly
+    correlated variables - Linear dependencies - Centering and scaling -
+    Transform predictors - Remove outliers
+4.  Feature selection\
+5.  Feature engineering\*
+6.  Data splitting (skip)
+7.  Train and tune models - Lasso regression model - XGBoost model -
+    Random forest
+8.  Evaluate performance
 
 ## R code
 
+### Load R libraries
+
+Load necessary libraries
+
+```{r libraries, warning=FALSE}
+
+library(tidyverse) 
+library(caret) 
+
+```
+
+### Import data sets
+
+```{r import data}
+
+# unzip downloaded file 
+
+unzip(zipfile = "./house-prices-advanced-regression-techniques.zip",
+      files = NULL,
+      exdir = "./raw-data")
+
+list.files("./raw-data")
+
+```
+
+The row datasets contain four files: - `data_description.txt` -
+`sample_submission.csv` - `test.csv` - `train.csv`
+
+Import and inspect train set 
+
+```{r csv files}
+
+# read in train.csv
+
+train_df <- read.csv(file = "./raw-data/train.csv",
+                     header = T)
+
+head(train_df)  # view first rows 
+
+
+# data structure 
+str(train_df)
+
+
+dim(train_df)
+
+```
+
+The train set contains `r dim(train_df)[1]` observations and
+`r dim(train_df)[2]` variables.
+
+Find description of response and explanatory variables at the Kaggle [website](https://www.kaggle.com/competitions/house-prices-advanced-regression-techniques/data). 
+
+
+Import and inspect test set 
+
+```{r test set}
+
+# load test set 
+test_df <- read.csv(file = "./raw-data/test.csv",
+                    header = T)
+
+head(test_df)
+
+```
+
+The test set contains `r dim(test_df)[1]` observations and
+`r dim(test_df)[2]` variables.
+
+### Exploratory data analysis 
+
+#### Distribution of response variable in the train set 
+
+The target variable to predict is `SalePrice` - the property's sale price in dollars.  
+
+```{r  EDA-response-var}
+
+# distribution of the response variable in the train set 
+ggplot(data = train_df, aes(x = SalePrice/1000)) +
+        geom_histogram(binwidth = 10, fill = "royalblue", alpha = 0.8) +
+        scale_x_continuous(name = "Sale price in thousand dollars",
+                           breaks = seq(1, 800, by=100),
+                           labels = paste(seq(1, 800, by=100), "K", sep = "")) +
+        geom_vline(aes(xintercept = 163), linetype = "dashed", color = "orange", size = 1)
+        
+
+```
+The dashed line in the above histogram indicates the median of the sale prices in the train set. 
+
+
+The response variable in the train set is left skewed. The average is 180K and median 163K. 
+
+```{r summary-stats-response-var}
+
+# summary stats 
+summary(train_df$SalePrice)
+
+# check if any missing values 
+sum(is.na(train_df$SalePrice))  
+
+```
+
+### Numeric variables
+
+```{r numeric-var}
+
+# subset numeric variables 
+train_df_num <- train_df %>% 
+        dplyr::select(where(is.numeric))  
+
+
+# pick top numeric variables based on rho 
+
+res_num <- cor(train_df_num, method = "spearman")  
+
+colnames(res_num) <- 1:ncol(res_num)
+
+top_num_index <- res_num %>% 
+        as.data.frame() %>% 
+        rownames_to_column("variable") %>% 
+        mutate(row_index = 1:nrow(.)) %>% 
+        gather(key = "col_index", value = "rho", -c("row_index", "variable")) %>% 
+        filter(variable == "SalePrice") %>% 
+        filter(abs(rho) >= 0.5) %>%
+        pull(col_index) %>% 
+        as.numeric
+
+top_num_var <- rownames(res_num)[top_num_index]  # top variable names  
+
+
+```
+
+Subset top number variables
+
+```{r top-numeric-variables} 
+
+caret::featurePlot(x = train_df_num[ ,top_num_index],
+                   y = train_df_num$SalePrice,
+                   plot = "Scatter",
+                   layout = c(4,3),
+                   jitter = T) 
+
+
+
+```
+
+### Factor variables 
 
 
 
@@ -127,4 +270,7 @@ This is a Kaggle competition project. The purpose of this project is to predict 
 
 
 
-d 
+
+
+
+
