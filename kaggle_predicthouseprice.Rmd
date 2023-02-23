@@ -353,11 +353,33 @@ wilcox_fact_multi_df <- do.call(rbind, wilcox_fact_multi) %>%
 
 ```
 
+Identify zero- and near-zero variance variables, or either. 
+
+```{r }
+
+# near-zero variance 
+nzv <- nearZeroVar(train_df_num[ ,top_num_index], saveMetrics = F) 
+
+dim(train_df_num[ ,top_num_index])
+
+
+
+```
+
+Identify highly correlated variables.  
+
+```{r highly-cor-var}
+
+fl_train_cor <- cor(train_df_num[ ,top_num_index])
+
+highcorvar <- findCorrelation(fl_train_cor, cutoff = .75) 
 
 
 
 
 
+
+```
 
 
 
