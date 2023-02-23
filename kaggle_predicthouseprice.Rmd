@@ -264,6 +264,96 @@ caret::featurePlot(x = train_df_num[ ,top_num_index],
 
 ### Factor variables 
 
+Subset factor variables 
+
+```{r subset-factor}
+
+# covert character variables to factors 
+
+train_df_fact <- train_df %>% 
+        mutate_if(is.character, as.factor) %>% 
+        dplyr::select(where(is.factor), SalePrice)    
+
+
+str(train_df_fact) 
+
+
+```
+
+Subset 43 factor variables and the response variable `SalePrice`. 
+
+
+Identify top factor variables associated with `SalePrice`. Use non-parameter [Kruskal-Wallis test](https://en.wikipedia.org/wiki/Kruskal%E2%80%93Wallis_one-way_analysis_of_variance#:~:text=Allen%20Wallis)%2C%20or%20one%2D,for%20comparing%20only%20two%20groups.) for multiple-class variables, while using [Mann-Whitney U test](https://en.wikipedia.org/wiki/Mann%E2%80%93Whitney_U_test) to binary-class variables. 
+
+Use purrr package to apply function to columns of the data frame, referring to the [instruction](https://rpubs.com/faiazrmn/purrr_map_map2)
+
+```{r top-factor-var}
+
+# extract binary-class variables 
+is_binary <- train_df_fact %>% 
+        purrr::map_dfr(\(train_df_fact) length(levels(train_df_fact))) %>% 
+        gather(key = "factor_variable", value = "levels") %>% 
+        filter(levels == 2) %>% 
+        pull(factor_variable) 
+
+
+# apply Wilcox test to each variables 
+train_df_fact_l2 <- train_df_fact %>% 
+        select(all_of(is_binary), SalePrice) 
+
+response_var <- train_df_fact_l2$SalePrice  %>% as.data.frame()
+
+binary_var <- train_df_fact_l2[1:4] 
+
+wilcox_fact_lv2 <- map2(binary_var, response_var, ~wilcox.test(.y ~ .x)) 
+
+
+# extract p-value and subset significant variables 
+wilcox_fact_lv2_df <- do.call(rbind, wilcox_fact_lv2) %>% 
+        as.data.frame() %>% 
+        rownames_to_column("variable") %>% 
+        select(variable, p.value) %>% 
+        filter(p.value <= 0.05) %>% 
+        pull(variable)
+
+
+```
+
+For multiple-class factors, repeat the previous steps. 
+
+```{r multiple-class-var-KW} 
+
+# extract binary-class variables 
+is_multiclass <- train_df_fact %>% 
+        purrr::map_dfr(\(train_df_fact) length(levels(train_df_fact))) %>% 
+        gather(key = "factor_variable", value = "levels") %>% 
+        filter(levels > 2) %>% 
+        pull(factor_variable) 
+
+
+# apply kruskal-wallis test to each variables 
+train_df_fact_multi <- train_df_fact %>% 
+        select(all_of(is_multiclass), SalePrice) 
+
+response_var <- train_df_fact_multi$SalePrice  %>% as.data.frame()
+
+multiclass_var <- train_df_fact_multi %>% select(-SalePrice)
+
+wilcox_fact_multi <- map2(multiclass_var, response_var, ~kruskal.test(.y ~ .x)) 
+
+
+# extract p-value and subset significant variables 
+wilcox_fact_multi_df <- do.call(rbind, wilcox_fact_multi) %>% 
+        as.data.frame() %>% 
+        rownames_to_column("variable") %>% 
+        select(variable, p.value) %>% 
+        filter(p.value <= 0.05) %>% 
+        pull(variable)
+
+
+```
+
+
 
 
 
