@@ -2848,7 +2848,7 @@ div.tocify {
 
 <h1 class="title toc-ignore">Kaggle project: House price regression</h1>
 <h4 class="author">Xin (David) Zhao</h4>
-<h4 class="date">Last edited 22 February 2023</h4>
+<h4 class="date">Last edited 23 February 2023</h4>
 
 </div>
 
@@ -3131,6 +3131,153 @@ variables</h3>
 <div id="factor-variables" class="section level3" number="0.3.5">
 <h3><span class="header-section-number">0.3.5</span> Factor
 variables</h3>
+<p>Subset factor variables</p>
+<div class="sourceCode" id="cb18"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a><span class="co"># covert character variables to factors </span></span>
+<span id="cb18-2"><a href="#cb18-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-3"><a href="#cb18-3" aria-hidden="true" tabindex="-1"></a>train_df_fact <span class="ot">&lt;-</span> train_df <span class="sc">%&gt;%</span> </span>
+<span id="cb18-4"><a href="#cb18-4" aria-hidden="true" tabindex="-1"></a>        <span class="fu">mutate_if</span>(is.character, as.factor) <span class="sc">%&gt;%</span> </span>
+<span id="cb18-5"><a href="#cb18-5" aria-hidden="true" tabindex="-1"></a>        dplyr<span class="sc">::</span><span class="fu">select</span>(<span class="fu">where</span>(is.factor), SalePrice)    </span>
+<span id="cb18-6"><a href="#cb18-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-7"><a href="#cb18-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-8"><a href="#cb18-8" aria-hidden="true" tabindex="-1"></a><span class="fu">str</span>(train_df_fact) </span></code></pre></div>
+<pre><code>## &#39;data.frame&#39;:    1460 obs. of  44 variables:
+##  $ MSZoning     : Factor w/ 5 levels &quot;C (all)&quot;,&quot;FV&quot;,..: 4 4 4 4 4 4 4 4 5 4 ...
+##  $ Street       : Factor w/ 2 levels &quot;Grvl&quot;,&quot;Pave&quot;: 2 2 2 2 2 2 2 2 2 2 ...
+##  $ Alley        : Factor w/ 2 levels &quot;Grvl&quot;,&quot;Pave&quot;: NA NA NA NA NA NA NA NA NA NA ...
+##  $ LotShape     : Factor w/ 4 levels &quot;IR1&quot;,&quot;IR2&quot;,&quot;IR3&quot;,..: 4 4 1 1 1 1 4 1 4 4 ...
+##  $ LandContour  : Factor w/ 4 levels &quot;Bnk&quot;,&quot;HLS&quot;,&quot;Low&quot;,..: 4 4 4 4 4 4 4 4 4 4 ...
+##  $ Utilities    : Factor w/ 2 levels &quot;AllPub&quot;,&quot;NoSeWa&quot;: 1 1 1 1 1 1 1 1 1 1 ...
+##  $ LotConfig    : Factor w/ 5 levels &quot;Corner&quot;,&quot;CulDSac&quot;,..: 5 3 5 1 3 5 5 1 5 1 ...
+##  $ LandSlope    : Factor w/ 3 levels &quot;Gtl&quot;,&quot;Mod&quot;,&quot;Sev&quot;: 1 1 1 1 1 1 1 1 1 1 ...
+##  $ Neighborhood : Factor w/ 25 levels &quot;Blmngtn&quot;,&quot;Blueste&quot;,..: 6 25 6 7 14 12 21 17 18 4 ...
+##  $ Condition1   : Factor w/ 9 levels &quot;Artery&quot;,&quot;Feedr&quot;,..: 3 2 3 3 3 3 3 5 1 1 ...
+##  $ Condition2   : Factor w/ 8 levels &quot;Artery&quot;,&quot;Feedr&quot;,..: 3 3 3 3 3 3 3 3 3 1 ...
+##  $ BldgType     : Factor w/ 5 levels &quot;1Fam&quot;,&quot;2fmCon&quot;,..: 1 1 1 1 1 1 1 1 1 2 ...
+##  $ HouseStyle   : Factor w/ 8 levels &quot;1.5Fin&quot;,&quot;1.5Unf&quot;,..: 6 3 6 6 6 1 3 6 1 2 ...
+##  $ RoofStyle    : Factor w/ 6 levels &quot;Flat&quot;,&quot;Gable&quot;,..: 2 2 2 2 2 2 2 2 2 2 ...
+##  $ RoofMatl     : Factor w/ 8 levels &quot;ClyTile&quot;,&quot;CompShg&quot;,..: 2 2 2 2 2 2 2 2 2 2 ...
+##  $ Exterior1st  : Factor w/ 15 levels &quot;AsbShng&quot;,&quot;AsphShn&quot;,..: 13 9 13 14 13 13 13 7 4 9 ...
+##  $ Exterior2nd  : Factor w/ 16 levels &quot;AsbShng&quot;,&quot;AsphShn&quot;,..: 14 9 14 16 14 14 14 7 16 9 ...
+##  $ MasVnrType   : Factor w/ 4 levels &quot;BrkCmn&quot;,&quot;BrkFace&quot;,..: 2 3 2 3 2 3 4 4 3 3 ...
+##  $ ExterQual    : Factor w/ 4 levels &quot;Ex&quot;,&quot;Fa&quot;,&quot;Gd&quot;,..: 3 4 3 4 3 4 3 4 4 4 ...
+##  $ ExterCond    : Factor w/ 5 levels &quot;Ex&quot;,&quot;Fa&quot;,&quot;Gd&quot;,..: 5 5 5 5 5 5 5 5 5 5 ...
+##  $ Foundation   : Factor w/ 6 levels &quot;BrkTil&quot;,&quot;CBlock&quot;,..: 3 2 3 1 3 6 3 2 1 1 ...
+##  $ BsmtQual     : Factor w/ 4 levels &quot;Ex&quot;,&quot;Fa&quot;,&quot;Gd&quot;,..: 3 3 3 4 3 3 1 3 4 4 ...
+##  $ BsmtCond     : Factor w/ 4 levels &quot;Fa&quot;,&quot;Gd&quot;,&quot;Po&quot;,..: 4 4 4 2 4 4 4 4 4 4 ...
+##  $ BsmtExposure : Factor w/ 4 levels &quot;Av&quot;,&quot;Gd&quot;,&quot;Mn&quot;,..: 4 2 3 4 1 4 1 3 4 4 ...
+##  $ BsmtFinType1 : Factor w/ 6 levels &quot;ALQ&quot;,&quot;BLQ&quot;,&quot;GLQ&quot;,..: 3 1 3 1 3 3 3 1 6 3 ...
+##  $ BsmtFinType2 : Factor w/ 6 levels &quot;ALQ&quot;,&quot;BLQ&quot;,&quot;GLQ&quot;,..: 6 6 6 6 6 6 6 2 6 6 ...
+##  $ Heating      : Factor w/ 6 levels &quot;Floor&quot;,&quot;GasA&quot;,..: 2 2 2 2 2 2 2 2 2 2 ...
+##  $ HeatingQC    : Factor w/ 5 levels &quot;Ex&quot;,&quot;Fa&quot;,&quot;Gd&quot;,..: 1 1 1 3 1 1 1 1 3 1 ...
+##  $ CentralAir   : Factor w/ 2 levels &quot;N&quot;,&quot;Y&quot;: 2 2 2 2 2 2 2 2 2 2 ...
+##  $ Electrical   : Factor w/ 5 levels &quot;FuseA&quot;,&quot;FuseF&quot;,..: 5 5 5 5 5 5 5 5 2 5 ...
+##  $ KitchenQual  : Factor w/ 4 levels &quot;Ex&quot;,&quot;Fa&quot;,&quot;Gd&quot;,..: 3 4 3 3 3 4 3 4 4 4 ...
+##  $ Functional   : Factor w/ 7 levels &quot;Maj1&quot;,&quot;Maj2&quot;,..: 7 7 7 7 7 7 7 7 3 7 ...
+##  $ FireplaceQu  : Factor w/ 5 levels &quot;Ex&quot;,&quot;Fa&quot;,&quot;Gd&quot;,..: NA 5 5 3 5 NA 3 5 5 5 ...
+##  $ GarageType   : Factor w/ 6 levels &quot;2Types&quot;,&quot;Attchd&quot;,..: 2 2 2 6 2 2 2 2 6 2 ...
+##  $ GarageFinish : Factor w/ 3 levels &quot;Fin&quot;,&quot;RFn&quot;,&quot;Unf&quot;: 2 2 2 3 2 3 2 2 3 2 ...
+##  $ GarageQual   : Factor w/ 5 levels &quot;Ex&quot;,&quot;Fa&quot;,&quot;Gd&quot;,..: 5 5 5 5 5 5 5 5 2 3 ...
+##  $ GarageCond   : Factor w/ 5 levels &quot;Ex&quot;,&quot;Fa&quot;,&quot;Gd&quot;,..: 5 5 5 5 5 5 5 5 5 5 ...
+##  $ PavedDrive   : Factor w/ 3 levels &quot;N&quot;,&quot;P&quot;,&quot;Y&quot;: 3 3 3 3 3 3 3 3 3 3 ...
+##  $ PoolQC       : Factor w/ 3 levels &quot;Ex&quot;,&quot;Fa&quot;,&quot;Gd&quot;: NA NA NA NA NA NA NA NA NA NA ...
+##  $ Fence        : Factor w/ 4 levels &quot;GdPrv&quot;,&quot;GdWo&quot;,..: NA NA NA NA NA 3 NA NA NA NA ...
+##  $ MiscFeature  : Factor w/ 4 levels &quot;Gar2&quot;,&quot;Othr&quot;,..: NA NA NA NA NA 3 NA 3 NA NA ...
+##  $ SaleType     : Factor w/ 9 levels &quot;COD&quot;,&quot;Con&quot;,&quot;ConLD&quot;,..: 9 9 9 9 9 9 9 9 9 9 ...
+##  $ SaleCondition: Factor w/ 6 levels &quot;Abnorml&quot;,&quot;AdjLand&quot;,..: 5 5 5 1 5 5 5 5 1 5 ...
+##  $ SalePrice    : int  208500 181500 223500 140000 250000 143000 307000 200000 129900 118000 ...</code></pre>
+<p>Subset 43 factor variables and the response variable
+<code>SalePrice</code>.</p>
+<p>Identify top factor variables associated with <code>SalePrice</code>.
+Use non-parameter <a href="https://en.wikipedia.org/wiki/Kruskal%E2%80%93Wallis_one-way_analysis_of_variance#:~:text=Allen%20Wallis">Kruskal-Wallis
+test</a>%2C%20or%20one%2D,for%20comparing%20only%20two%20groups.) for
+multiple-class variables, while using <a href="https://en.wikipedia.org/wiki/Mann%E2%80%93Whitney_U_test">Mann-Whitney
+U test</a> to binary-class variables.</p>
+<p>Use purrr package to apply function to columns of the data frame,
+referring to the <a href="https://rpubs.com/faiazrmn/purrr_map_map2">instruction</a></p>
+<div class="sourceCode" id="cb20"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a><span class="co"># extract binary-class variables </span></span>
+<span id="cb20-2"><a href="#cb20-2" aria-hidden="true" tabindex="-1"></a>is_binary <span class="ot">&lt;-</span> train_df_fact <span class="sc">%&gt;%</span> </span>
+<span id="cb20-3"><a href="#cb20-3" aria-hidden="true" tabindex="-1"></a>        purrr<span class="sc">::</span><span class="fu">map_dfr</span>(\(train_df_fact) <span class="fu">length</span>(<span class="fu">levels</span>(train_df_fact))) <span class="sc">%&gt;%</span> </span>
+<span id="cb20-4"><a href="#cb20-4" aria-hidden="true" tabindex="-1"></a>        <span class="fu">gather</span>(<span class="at">key =</span> <span class="st">&quot;factor_variable&quot;</span>, <span class="at">value =</span> <span class="st">&quot;levels&quot;</span>) <span class="sc">%&gt;%</span> </span>
+<span id="cb20-5"><a href="#cb20-5" aria-hidden="true" tabindex="-1"></a>        <span class="fu">filter</span>(levels <span class="sc">==</span> <span class="dv">2</span>) <span class="sc">%&gt;%</span> </span>
+<span id="cb20-6"><a href="#cb20-6" aria-hidden="true" tabindex="-1"></a>        <span class="fu">pull</span>(factor_variable) </span>
+<span id="cb20-7"><a href="#cb20-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-8"><a href="#cb20-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-9"><a href="#cb20-9" aria-hidden="true" tabindex="-1"></a><span class="co"># apply Wilcox test to each variables </span></span>
+<span id="cb20-10"><a href="#cb20-10" aria-hidden="true" tabindex="-1"></a>train_df_fact_l2 <span class="ot">&lt;-</span> train_df_fact <span class="sc">%&gt;%</span> </span>
+<span id="cb20-11"><a href="#cb20-11" aria-hidden="true" tabindex="-1"></a>        <span class="fu">select</span>(<span class="fu">all_of</span>(is_binary), SalePrice) </span>
+<span id="cb20-12"><a href="#cb20-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-13"><a href="#cb20-13" aria-hidden="true" tabindex="-1"></a>response_var <span class="ot">&lt;-</span> train_df_fact_l2<span class="sc">$</span>SalePrice  <span class="sc">%&gt;%</span> <span class="fu">as.data.frame</span>()</span>
+<span id="cb20-14"><a href="#cb20-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-15"><a href="#cb20-15" aria-hidden="true" tabindex="-1"></a>binary_var <span class="ot">&lt;-</span> train_df_fact_l2[<span class="dv">1</span><span class="sc">:</span><span class="dv">4</span>] </span>
+<span id="cb20-16"><a href="#cb20-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-17"><a href="#cb20-17" aria-hidden="true" tabindex="-1"></a>wilcox_fact_lv2 <span class="ot">&lt;-</span> <span class="fu">map2</span>(binary_var, response_var, <span class="sc">~</span><span class="fu">wilcox.test</span>(.y <span class="sc">~</span> .x)) </span>
+<span id="cb20-18"><a href="#cb20-18" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-19"><a href="#cb20-19" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-20"><a href="#cb20-20" aria-hidden="true" tabindex="-1"></a><span class="co"># extract p-value and subset significant variables </span></span>
+<span id="cb20-21"><a href="#cb20-21" aria-hidden="true" tabindex="-1"></a>wilcox_fact_lv2_df <span class="ot">&lt;-</span> <span class="fu">do.call</span>(rbind, wilcox_fact_lv2) <span class="sc">%&gt;%</span> </span>
+<span id="cb20-22"><a href="#cb20-22" aria-hidden="true" tabindex="-1"></a>        <span class="fu">as.data.frame</span>() <span class="sc">%&gt;%</span> </span>
+<span id="cb20-23"><a href="#cb20-23" aria-hidden="true" tabindex="-1"></a>        <span class="fu">rownames_to_column</span>(<span class="st">&quot;variable&quot;</span>) <span class="sc">%&gt;%</span> </span>
+<span id="cb20-24"><a href="#cb20-24" aria-hidden="true" tabindex="-1"></a>        <span class="fu">select</span>(variable, p.value) <span class="sc">%&gt;%</span> </span>
+<span id="cb20-25"><a href="#cb20-25" aria-hidden="true" tabindex="-1"></a>        <span class="fu">filter</span>(p.value <span class="sc">&lt;=</span> <span class="fl">0.05</span>) <span class="sc">%&gt;%</span> </span>
+<span id="cb20-26"><a href="#cb20-26" aria-hidden="true" tabindex="-1"></a>        <span class="fu">pull</span>(variable)</span></code></pre></div>
+<p>For multiple-class factors, repeat the previous steps.</p>
+<div class="sourceCode" id="cb21"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a><span class="co"># extract binary-class variables </span></span>
+<span id="cb21-2"><a href="#cb21-2" aria-hidden="true" tabindex="-1"></a>is_multiclass <span class="ot">&lt;-</span> train_df_fact <span class="sc">%&gt;%</span> </span>
+<span id="cb21-3"><a href="#cb21-3" aria-hidden="true" tabindex="-1"></a>        purrr<span class="sc">::</span><span class="fu">map_dfr</span>(\(train_df_fact) <span class="fu">length</span>(<span class="fu">levels</span>(train_df_fact))) <span class="sc">%&gt;%</span> </span>
+<span id="cb21-4"><a href="#cb21-4" aria-hidden="true" tabindex="-1"></a>        <span class="fu">gather</span>(<span class="at">key =</span> <span class="st">&quot;factor_variable&quot;</span>, <span class="at">value =</span> <span class="st">&quot;levels&quot;</span>) <span class="sc">%&gt;%</span> </span>
+<span id="cb21-5"><a href="#cb21-5" aria-hidden="true" tabindex="-1"></a>        <span class="fu">filter</span>(levels <span class="sc">&gt;</span> <span class="dv">2</span>) <span class="sc">%&gt;%</span> </span>
+<span id="cb21-6"><a href="#cb21-6" aria-hidden="true" tabindex="-1"></a>        <span class="fu">pull</span>(factor_variable) </span>
+<span id="cb21-7"><a href="#cb21-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-8"><a href="#cb21-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-9"><a href="#cb21-9" aria-hidden="true" tabindex="-1"></a><span class="co"># apply kruskal-wallis test to each variables </span></span>
+<span id="cb21-10"><a href="#cb21-10" aria-hidden="true" tabindex="-1"></a>train_df_fact_multi <span class="ot">&lt;-</span> train_df_fact <span class="sc">%&gt;%</span> </span>
+<span id="cb21-11"><a href="#cb21-11" aria-hidden="true" tabindex="-1"></a>        <span class="fu">select</span>(<span class="fu">all_of</span>(is_multiclass), SalePrice) </span>
+<span id="cb21-12"><a href="#cb21-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-13"><a href="#cb21-13" aria-hidden="true" tabindex="-1"></a>response_var <span class="ot">&lt;-</span> train_df_fact_multi<span class="sc">$</span>SalePrice  <span class="sc">%&gt;%</span> <span class="fu">as.data.frame</span>()</span>
+<span id="cb21-14"><a href="#cb21-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-15"><a href="#cb21-15" aria-hidden="true" tabindex="-1"></a>multiclass_var <span class="ot">&lt;-</span> train_df_fact_multi <span class="sc">%&gt;%</span> <span class="fu">select</span>(<span class="sc">-</span>SalePrice)</span>
+<span id="cb21-16"><a href="#cb21-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-17"><a href="#cb21-17" aria-hidden="true" tabindex="-1"></a>wilcox_fact_multi <span class="ot">&lt;-</span> <span class="fu">map2</span>(multiclass_var, response_var, <span class="sc">~</span><span class="fu">kruskal.test</span>(.y <span class="sc">~</span> .x)) </span>
+<span id="cb21-18"><a href="#cb21-18" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-19"><a href="#cb21-19" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-20"><a href="#cb21-20" aria-hidden="true" tabindex="-1"></a><span class="co"># extract p-value and subset significant variables </span></span>
+<span id="cb21-21"><a href="#cb21-21" aria-hidden="true" tabindex="-1"></a>wilcox_fact_multi_df <span class="ot">&lt;-</span> <span class="fu">do.call</span>(rbind, wilcox_fact_multi) <span class="sc">%&gt;%</span> </span>
+<span id="cb21-22"><a href="#cb21-22" aria-hidden="true" tabindex="-1"></a>        <span class="fu">as.data.frame</span>() <span class="sc">%&gt;%</span> </span>
+<span id="cb21-23"><a href="#cb21-23" aria-hidden="true" tabindex="-1"></a>        <span class="fu">rownames_to_column</span>(<span class="st">&quot;variable&quot;</span>) <span class="sc">%&gt;%</span> </span>
+<span id="cb21-24"><a href="#cb21-24" aria-hidden="true" tabindex="-1"></a>        <span class="fu">select</span>(variable, p.value) <span class="sc">%&gt;%</span> </span>
+<span id="cb21-25"><a href="#cb21-25" aria-hidden="true" tabindex="-1"></a>        <span class="fu">filter</span>(p.value <span class="sc">&lt;=</span> <span class="fl">0.05</span>) <span class="sc">%&gt;%</span> </span>
+<span id="cb21-26"><a href="#cb21-26" aria-hidden="true" tabindex="-1"></a>        <span class="fu">pull</span>(variable)</span></code></pre></div>
+<p>Identify zero- and near-zero variance variables, or either.</p>
+<div class="sourceCode" id="cb22"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a><span class="co"># near-zero variance </span></span>
+<span id="cb22-2"><a href="#cb22-2" aria-hidden="true" tabindex="-1"></a>nzv <span class="ot">&lt;-</span> <span class="fu">nearZeroVar</span>(train_df_num[ ,top_num_index], <span class="at">saveMetrics =</span> F) </span>
+<span id="cb22-3"><a href="#cb22-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-4"><a href="#cb22-4" aria-hidden="true" tabindex="-1"></a><span class="fu">dim</span>(train_df_num[ ,top_num_index])</span></code></pre></div>
+<pre><code>## [1] 1460   12</code></pre>
+<p>Identify highly correlated variables.</p>
+<div class="sourceCode" id="cb24"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb24-1"><a href="#cb24-1" aria-hidden="true" tabindex="-1"></a>fl_train_cor <span class="ot">&lt;-</span> <span class="fu">cor</span>(train_df_num[ ,top_num_index])</span>
+<span id="cb24-2"><a href="#cb24-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb24-3"><a href="#cb24-3" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(fl_train_cor[<span class="fu">upper.tri</span>(fl_train_cor)])</span></code></pre></div>
+<pre><code>##    Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+## 0.09559 0.34521 0.46709 0.45812 0.55919 0.88248</code></pre>
+<div class="sourceCode" id="cb26"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb26-1"><a href="#cb26-1" aria-hidden="true" tabindex="-1"></a>highcorvar <span class="ot">&lt;-</span> <span class="fu">findCorrelation</span>(fl_train_cor, <span class="at">cutoff =</span> .<span class="dv">75</span>) </span>
+<span id="cb26-2"><a href="#cb26-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-3"><a href="#cb26-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-4"><a href="#cb26-4" aria-hidden="true" tabindex="-1"></a>train_df_num_top <span class="ot">&lt;-</span> train_df_num[ ,top_num_index] <span class="sc">%&gt;%</span> </span>
+<span id="cb26-5"><a href="#cb26-5" aria-hidden="true" tabindex="-1"></a>        <span class="fu">select</span>(<span class="sc">-</span>highcorvar)  </span></code></pre></div>
+<pre><code>## Warning: Using an external vector in selections was deprecated in tidyselect 1.1.0.
+## ℹ Please use `all_of()` or `any_of()` instead.
+##   # Was:
+##   data %&gt;% select(highcorvar)
+## 
+##   # Now:
+##   data %&gt;% select(all_of(highcorvar))
+## 
+## See &lt;https://tidyselect.r-lib.org/reference/faq-external-vector.html&gt;.</code></pre>
+<div class="sourceCode" id="cb28"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb28-1"><a href="#cb28-1" aria-hidden="true" tabindex="-1"></a>train_df_num_top_cor <span class="ot">&lt;-</span> <span class="fu">cor</span>(train_df_num_top)</span>
+<span id="cb28-2"><a href="#cb28-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb28-3"><a href="#cb28-3" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(train_df_num_top_cor[<span class="fu">upper.tri</span>(train_df_num_top_cor)])</span></code></pre></div>
+<pre><code>##    Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+## 0.09559 0.28969 0.39411 0.38397 0.49945 0.59286</code></pre>
 </div>
 </div>
 
