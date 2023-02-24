@@ -372,16 +372,28 @@ Identify highly correlated variables.
 
 fl_train_cor <- cor(train_df_num[ ,top_num_index])
 
+summary(fl_train_cor[upper.tri(fl_train_cor)])
+
+
 highcorvar <- findCorrelation(fl_train_cor, cutoff = .75) 
 
 
+train_df_num_top <- train_df_num[ ,top_num_index] %>% 
+        select(-highcorvar)  
 
 
+train_df_num_top_cor <- cor(train_df_num_top)
 
+summary(train_df_num_top_cor[upper.tri(train_df_num_top_cor)])
 
 ```
 
+Up next, perform unsupervised machine learning to selected numeric variables, 
+- k-means clustering 
+- hierarchical clustering 
+- PCA 
 
+In addition, compare two clustering assignments. 
 
 
 
