@@ -92,9 +92,9 @@ This is a Kaggle competition project. The purpose of this project is to
 predict house prices in Ames, Iowa from available variables with machine
 learning algorithms.
 
-Personal learning purpose: - Refresh machine learning knowledge -
+Personal learning purpose: - Reinforce machine learning knowledge -
 Practice using caret package and workflow - Learn advanced feature
-engineering - Learn math and principles for algorithms
+engineering - Learn new algorithms
 
 ## Workflow
 
@@ -124,6 +124,7 @@ Load necessary libraries
 
 library(tidyverse) 
 library(caret) 
+library(factoextra) # visualize kmeans 
 
 ```
 
@@ -316,14 +317,13 @@ wilcox_fact_lv2_df <- do.call(rbind, wilcox_fact_lv2) %>%
         filter(p.value <= 0.05) %>% 
         pull(variable)
 
-
 ```
 
 For multiple-class factors, repeat the previous steps. 
 
 ```{r multiple-class-var-KW} 
 
-# extract binary-class variables 
+# extract multi-class variables 
 is_multiclass <- train_df_fact %>% 
         purrr::map_dfr(\(train_df_fact) length(levels(train_df_fact))) %>% 
         gather(key = "factor_variable", value = "levels") %>% 
@@ -353,47 +353,252 @@ wilcox_fact_multi_df <- do.call(rbind, wilcox_fact_multi) %>%
 
 ```
 
+
+### Create dummy variables 
+
+Use `dummyVars` function in `caret` package to generate a complete set of dummy variables from multiple factors. 
+
+Why creating dummy variables is necessary before subsequent ML modeling? 
+
+```{r subset sig factors}
+
+# subset significant factors from train set 
+
+# train_df_fact_sig <- train_df_fact %>% 
+#         select(all_of(wilcox_fact_lv2_df), 
+#                all_of(wilcox_fact_multi_df),
+#                SalePrice)
+# 
+# 
+# dim(train_df_fact_sig) 
+
+
+# convert character variables to factors in the train set 
+train_df2 <- train_df %>% 
+        mutate_if(is.character, as.factor) %>% 
+        mutate(Id = paste("W", as.character(Id), sep = "")) %>%  # keep id as character variables 
+        column_to_rownames("Id")  
+
+```
+The resulting dataset has 37 significant factors other than the response variable `SalePrice`. 
+
+The function `model.matrix` creates a design (or model) matrix. [R documentation](https://www.rdocumentation.org/packages/stats/versions/3.6.2/topics/model.matrix) provides detailed information regarding the function. 
+
+
+```{r dummy-var}
+
+# head(model.matrix(SalePrice ~., data = train_df_fact_sig)) 
+
+dummies_train <- dummyVars(SalePrice ~., data = train_df2)  
+
+dummies_train_df <- data.frame(predict(dummies_train, newdata = train_df2)) 
+
+
+
+# add SalePrice to the above data frame 
+
+resp_df <- train_df2 %>% 
+        rownames_to_column("Id") %>% 
+        select(Id, SalePrice) 
+        
+dummies_train_df2 <- dummies_train_df %>% 
+        rownames_to_column("Id") %>% 
+        left_join(resp_df, by ="Id") 
+        
+
+```
+
+As indicated by the caret package vignette, there is no intercept and each factor has a dummy variable for each level, so this parameterization may not be useful for some model functions, such as `lm`. 
+
+
+
+### Near-zero variance 
+
+According to the caret package documentation, a variable is considered the near-zero variance when it meets the conditions as follows, 
+
+- "frequency ratio" is greater than a pre-specified threshold
+- "unique value percentage" is less than a threshold 
+
+The [website](https://topepo.github.io/caret/pre-processing.html#creating-dummy-variables) provide detailed explanation regarding near-zero variance.  
+
+
 Identify zero- and near-zero variance variables, or either. 
 
 ```{r }
 
 # near-zero variance 
-nzv <- nearZeroVar(train_df_num[ ,top_num_index], saveMetrics = F) 
+nzv <- nearZeroVar(dummies_train_df2, saveMetrics = F) 
 
-dim(train_df_num[ ,top_num_index])
+# drop nzv variables 
+dummies_train_nzv <- dummies_train_df2[,-nzv] %>% 
+        column_to_rownames("Id")
 
+dim(dummies_train_df2)  # 290 variables 
 
+dim(dummies_train_nzv)  # 126 variables after removing nvz variables 
 
 ```
+
 
 Identify highly correlated variables.  
 
 ```{r highly-cor-var}
 
-fl_train_cor <- cor(train_df_num[ ,top_num_index])
+fl_train_cor <- cor(dummies_train_nzv) # pairwise correlation 
 
-summary(fl_train_cor[upper.tri(fl_train_cor)])
-
-
-highcorvar <- findCorrelation(fl_train_cor, cutoff = .75) 
+summary(fl_train_cor[upper.tri(fl_train_cor)]) # upper triangle of correlations matrix before the removal 
 
 
-train_df_num_top <- train_df_num[ ,top_num_index] %>% 
+# replace NA with 0
+fl_train_cor2 <- fl_train_cor %>% replace(is.na(.), 0)
+
+
+
+# index of highly correlated variables 
+highcorvar <- caret::findCorrelation(fl_train_cor2, cutoff = .75) 
+
+
+# remove the highly correlated variables in the train set 
+dummies_train_nzv2 <- dummies_train_nzv %>% 
         select(-highcorvar)  
 
 
-train_df_num_top_cor <- cor(train_df_num_top)
 
-summary(train_df_num_top_cor[upper.tri(train_df_num_top_cor)])
+# # check correlation matrix after removing the highly correlated variables 
+# dummies_train_nzv2_cor <- cor(dummies_train_nzv2)
+# 
+# summary(dummies_train_nzv2_cor[upper.tri(dummies_train_nzv2_cor)])
 
 ```
 
+
+### Clustering analysis - demontionality reduction 
 Up next, perform unsupervised machine learning to selected numeric variables, 
 - k-means clustering 
 - hierarchical clustering 
 - PCA 
-
 In addition, compare two clustering assignments. 
+
+
+Conduct k-means clustering analysis on the filtered variables in the train set. Refer to instructions on Datacamp and the website, [Datanovia](https://www.datanovia.com/en/lessons/k-means-clustering-in-r-algorith-and-practical-examples/). 
+
+```{r kmeans-cluster}
+
+# replace NA with 0 
+dummies_train_nzv3 <- dummies_train_nzv2 %>% replace(is.na(.), 0) 
+
+# scale 
+dummies_train_nzv3_scale <- scale(dummies_train_nzv3) 
+
+
+
+# implement kmeans 
+set.seed(123)
+
+kmeans_train <- kmeans(dummies_train_nzv3_scale, 
+                       centers = 3,  # group the data into 3 clusters 
+                       nstart = 20)  # generate 20 initial configuration 
+
+summary(kmeans_train)
+
+
+
+# distribution of kmeans clustering 
+table(kmeans_train$cluster)
+
+
+# calculate mean of the response variable, SalePrice by the clusters 
+aggregate(dummies_train_nzv, by = list(cluster = kmeans_train$cluster), mean) %>% 
+        select(cluster, SalePrice)
+
+
+```
+
+The Cluster 2 has the greatest average compared to Cluster 1 and 3. 
+
+Visualize kmeans clustering with `fviz_cluster` function in `functoextra` package. Refer to the online [instruction](https://uc-r.github.io/kmeans_clustering)
+
+
+```{r viz kmeans}
+
+fviz_cluster(kmeans_train, data = dummies_train_nzv3_scale, geom= "point")
+
+```
+
+
+
+Determine optimal cluster with the Elbow plot. Refer to the online [codes](https://uc-r.github.io/kmeans_clustering#elbow)
+
+```{r best-cluster}
+
+set.seed(123)
+
+# function to compute total within-cluster sum of square 
+wss <- function(k) {
+  kmeans(dummies_train_nzv3_scale, k, nstart = 10 )$tot.withinss
+}
+
+# Compute and plot wss for k = 1 to k = 15
+k.values <- 1:15
+
+# extract wss for 2-15 clusters
+wss_values <- map_dbl(k.values, wss)
+
+plot(k.values, wss_values,
+       type="b", pch = 19, frame = FALSE, 
+       xlab="Number of clusters K",
+       ylab="Total within-clusters sum of squares")
+
+
+
+
+```
+
+
+
+
+
+Run PCA on the filtered variables in the train set. 
+
+```{r PCA}
+
+dummies_train_nzv_rm <- dummies_train_nzv %>% replace(is.na(.), 0)
+
+pr.train <- prcomp(x = dummies_train_nzv_rm, scale =T, center = T)   
+
+summary(pr.train)
+
+```
+
+
+```{r biplot pca}
+
+# base R plot 
+biplot(pr.train,
+       xlim = c(-.1, .1), 
+       expand = 2,
+       main = "PCA of house sale price data",
+       xlab = "PC1",
+       ylab = "PC2")
+
+
+
+# ggplot2-based plot 
+
+fviz_pca_biplot(pr.train, 
+                repel = F,
+                col.ind = "grey",
+                label = "var",
+                select.var = list(contrib = 10)) # show top 10 variables   
+
+ 
+
+
+```
+
+
+
+
 
 
 
