@@ -124,7 +124,8 @@ Load necessary libraries
 
 library(tidyverse) 
 library(caret) 
-library(factoextra) # visualize kmeans 
+library(factoextra) # visualize k-means 
+library(RANN)
 
 ```
 
@@ -424,7 +425,7 @@ The [website](https://topepo.github.io/caret/pre-processing.html#creating-dummy-
 
 Identify zero- and near-zero variance variables, or either. 
 
-```{r }
+```{r}
 
 # near-zero variance 
 nzv <- nearZeroVar(dummies_train_df2, saveMetrics = F) 
@@ -457,10 +458,13 @@ fl_train_cor2 <- fl_train_cor %>% replace(is.na(.), 0)
 # index of highly correlated variables 
 highcorvar <- caret::findCorrelation(fl_train_cor2, cutoff = .75) 
 
+which(colnames(dummies_train_nzv) == "SalePrice")
+
+highcorvar2 <- highcorvar[highcorvar != 126]
 
 # remove the highly correlated variables in the train set 
 dummies_train_nzv2 <- dummies_train_nzv %>% 
-        select(-highcorvar)  
+        select(-highcorvar2)  
 
 
 
@@ -472,7 +476,70 @@ dummies_train_nzv2 <- dummies_train_nzv %>%
 ```
 
 
+
+
+### Imuptation 
+
+Caret package tutorial introduces two methods to impute missing values, K-nearest neighbors and bagged trees. 
+
+The caret website provides detailed explanation. 
+
+In this project, I used K-nearest neighbors to impute the missingness, if any. 
+
+```{r imputation}
+
+# distribution of missing values in data 
+miss_value <- sapply(dummies_train_nzv2, function(x) sum(is.na(x))) %>% as.data.frame()
+
+colnames(miss_value) <- "missing_count"
+
+miss_value2 <- miss_value %>% 
+  rownames_to_column("variable") %>% 
+  filter(missing_count !=0) %>% 
+  arrange(desc(missing_count)) 
+
+
+top10_var_missing <- miss_value2 %>% 
+  head(10) %>% 
+  pull(variable)
+
+
+# ggplot bar plot recording by missing_count 
+ggplot(miss_value2, 
+       aes(x = reorder(variable, missing_count), 
+           y= missing_count)) +
+  geom_bar(stat = "identity", fill = "royalblue") + 
+  coord_flip()
+
+
+
+dummies_train_missing <- dummies_train_nzv2 %>% 
+  select(-all_of(top10_var_missing)) 
+
+
+
+# apply k-nearest method to impute data 
+impute_knn <- preProcess(dummies_train_missing,
+                         method = "knnImpute") 
+
+impute_knn
+
+
+# train set after KNN imputation 
+dummies_train_impute <- predict(impute_knn, 
+                                newdata = dummies_train_missing) 
+
+
+# I encountered an error when running the KNN impute method. I found a Stack Exchange post said that "the problem you run into is that knnImpute requires at least as many samples in your data without missing values as you have specified with the k parameter for the k-nearest-neighbors." 
+
+
+```
+
+
+## Feature selection 
+
 ### Clustering analysis - demontionality reduction 
+
 Up next, perform unsupervised machine learning to selected numeric variables, 
 - k-means clustering 
 - hierarchical clustering 
@@ -484,15 +551,15 @@ Conduct k-means clustering analysis on the filtered variables in the train set. 
 
 ```{r kmeans-cluster}
 
-# replace NA with 0 
-dummies_train_nzv3 <- dummies_train_nzv2 %>% replace(is.na(.), 0) 
+# # replace NA with 0 
+# dummies_train_nzv3 <- dummies_train_impute %>% replace(is.na(.), 0) 
 
 # scale 
-dummies_train_nzv3_scale <- scale(dummies_train_nzv3) 
+dummies_train_nzv3_scale <- scale(dummies_train_impute) 
 
 
 
-# implement kmeans 
+# implement k-means 
 set.seed(123)
 
 kmeans_train <- kmeans(dummies_train_nzv3_scale, 
@@ -502,13 +569,14 @@ kmeans_train <- kmeans(dummies_train_nzv3_scale,
 summary(kmeans_train)
 
 
-
-# distribution of kmeans clustering 
+# distribution of k-means clustering 
 table(kmeans_train$cluster)
 
 
 # calculate mean of the response variable, SalePrice by the clusters 
-aggregate(dummies_train_nzv, by = list(cluster = kmeans_train$cluster), mean) %>% 
+aggregate(dummies_train_nzv, 
+          by = list(cluster = kmeans_train$cluster), 
+          mean) %>% 
         select(cluster, SalePrice)
 
 
@@ -521,7 +589,9 @@ Visualize kmeans clustering with `fviz_cluster` function in `functoextra` packag
 
 ```{r viz kmeans}
 
-fviz_cluster(kmeans_train, data = dummies_train_nzv3_scale, geom= "point")
+fviz_cluster(kmeans_train, 
+             data = dummies_train_nzv3_scale, 
+             geom= "point") 
 
 ```
 
@@ -549,52 +619,210 @@ plot(k.values, wss_values,
        xlab="Number of clusters K",
        ylab="Total within-clusters sum of squares")
 
-
-
-
 ```
 
 
 
-
-
-Run PCA on the filtered variables in the train set. 
+Run PCA on the filtered variables in the train-set. 
 
 ```{r PCA}
 
-dummies_train_nzv_rm <- dummies_train_nzv %>% replace(is.na(.), 0)
+set.seed(123)
 
-pr.train <- prcomp(x = dummies_train_nzv_rm, scale =T, center = T)   
+pr.train <- prcomp(x = dummies_train_nzv3, scale =T, center = T)   
 
 summary(pr.train)
+
 
 ```
 
 
 ```{r biplot pca}
 
-# base R plot 
-biplot(pr.train,
-       xlim = c(-.1, .1), 
-       expand = 2,
-       main = "PCA of house sale price data",
-       xlab = "PC1",
-       ylab = "PC2")
+# # base R plot 
+# biplot(pr.train,
+#        xlim = c(-.1, .1), 
+#        expand = 2,
+#        main = "PCA of house sale price data",
+#        xlab = "PC1",
+#        ylab = "PC2")
 
 
-
-# ggplot2-based plot 
-
+# ggplot2-based plot for PCA analysis 
 fviz_pca_biplot(pr.train, 
                 repel = F,
                 col.ind = "grey",
                 label = "var",
                 select.var = list(contrib = 10)) # show top 10 variables   
 
- 
+```
+
+Extract loading from PCA analysis using `factoextra` package. 
+
+```{r PCA loadings}
+
+# extract contribution of variables 
+pca_var <- factoextra::get_pca_var(pr.train) 
+
+
+# top 10 variables that explain variations of data 
+top_var_pca <- pca_var$contrib  %>% 
+  as.data.frame() %>% 
+  arrange(desc(abs(Dim.1))) %>% 
+  rownames_to_column("Variable") %>% 
+  head(12) %>% 
+  pull(Variable)
+
+top_var_pca 
+
+```
+
+9 variables most correlated with PC1 other than `SalePrice` are as follows, from most to least
+
+- `YearBuild` Original construction date 
+- `OverallQual` Overall material and finish quality 
+- `YearRemodAdd` Remodel date 
+- `BsmtQual.TA` Height of the basement (TA)
+- `ExterQual.Gd` Exterior material quality (Gd) 
+- `GarageArea` Size of garage in square feet 
+- `FullBath`Full bathrooms above grade 
+- `GarageFinish.Unf`Interior finish of the garage (Unf)
+- `HeatingQC.Ex`Heating quality and condition (Ex)
+- `BsmtFinType1.GLQ`Quality of basement finished area (GLQ)
+- `GarageType.Detchd` Garage location (Detchd)
+
+`BsmtQual.TA` links to low house sale price, whereas remaining variables link to high sale price. 
+
+<!-- Insert an external resources to explain how to interpret PCA biplot.   -->
+
+
+
+### Univariate analysis to select numeric variables 
+
+```{r univariate}
+
+# subset numeric variables 
+dummies_train_impute_num <- dummies_train_impute %>% 
+        dplyr::select(where(is.numeric))  
+
+
+# pick top numeric variables based on rho 
+
+res_num <- cor(dummies_train_impute_num, method = "spearman")  
+
+colnames(res_num) <- 1:ncol(res_num)
+
+top_num_index <- res_num %>% 
+        as.data.frame() %>% 
+        rownames_to_column("variable") %>% 
+        mutate(row_index = 1:nrow(.)) %>% 
+        gather(key = "col_index", value = "rho", -c("row_index", "variable")) %>% 
+        filter(variable == "SalePrice") %>% 
+        filter(abs(rho) >= 0.5) %>%
+        arrange(desc(abs(rho))) %>% 
+        pull(col_index) %>% 
+        as.numeric
+
+top_num_var <- rownames(res_num)[top_num_index]  # top variable names  
 
 
 ```
+
+Univariate analysis selected 13 numeric variables significantly associated with `SalePrice`, 
+- `OverallQual` 
+- `YearBuilt`
+- `GarageArea`
+-`FullBath`
+- `GarageYrBlt`
+-`GarageFinish.Unf`
+-`X1stFlrSF`
+-`ExterQual.Gd`
+-`BsmtQual.TA`
+-`YearRemodAdd`
+-`TotRmsAbvGrd`
+-`GarageType.Detchd`
+-`Fireplaces` 
+
+
+### Train models 
+
+```{r train control}
+
+fitControl <- trainControl(method = "repeatedcv",
+                           number = 10,
+                           repeats = 10) 
+
+```
+
+
+Regression models: 
+- eXtreme Gradient Boosting (xgbDART)
+- Generalized linear model (glm)
+- Random Forest (ranger) 
+
+
+```{r train models}
+
+# # select some numeric variables 
+# select_variables <- c("SalePrice", "YearBuilt", "GarageArea", "GarageYrBlt", "X1stFlrSF", "YearRemodAdd") 
+
+
+# prepare the final train set 
+dummies_train_missing2 <- 
+  dummies_train_missing %>% 
+  select(all_of(top_num_var))  
+
+dummies_train_missing3 <- dummies_train_missing2 %>% replace(is.na(.), 0)
+
+
+head(dummies_train_missing3) 
+
+set.seed(123)
+
+# eXtreme Gradient Boosting - installing the package takes time 
+# xgb <- train(SalePrice ~ ., 
+#              data = dummies_train_impute2,
+#              method = "xgbDART",
+#              trControl = fitControl,
+#              verbose = FALSE)
+
+
+# Generalized linear model
+
+glm_house <- train(SalePrice ~ .,
+                   data = dummies_train_missing3,
+                   method = "glm",
+                   trControl = fitControl) 
+
+glm_house # train model 
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
