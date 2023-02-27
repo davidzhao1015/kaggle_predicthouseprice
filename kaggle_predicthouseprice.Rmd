@@ -551,8 +551,8 @@ Conduct k-means clustering analysis on the filtered variables in the train set. 
 
 ```{r kmeans-cluster}
 
-# # replace NA with 0 
-# dummies_train_nzv3 <- dummies_train_impute %>% replace(is.na(.), 0) 
+# replace NA with 0
+dummies_train_nzv3 <- dummies_train_impute %>% replace(is.na(.), 0)
 
 # scale 
 dummies_train_nzv3_scale <- scale(dummies_train_impute) 
