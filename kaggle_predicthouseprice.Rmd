@@ -126,6 +126,8 @@ library(tidyverse)
 library(caret) 
 library(factoextra) # visualize k-means 
 library(RANN)
+library(mgcv) # generalized addictive model using splines - non-linear regression
+library(ranger)  # random forest 
 
 ```
 
@@ -746,22 +748,20 @@ Univariate analysis selected 13 numeric variables significantly associated with 
 
 ### Train models 
 
-```{r train control}
+Set up resampling method. Use [k-fold cross validation](https://rpubs.com/cliex159/881990) strategy. 
 
-fitControl <- trainControl(method = "repeatedcv",
-                           number = 10,
-                           repeats = 10) 
+
+```{r cross validation}
+
+fitControl <- trainControl(method = "cv", # cross validation 
+                           number = 10,  # k = 10 
+                           verboseIter = TRUE)  
 
 ```
 
 
-Regression models: 
-- eXtreme Gradient Boosting (xgbDART)
-- Generalized linear model (glm)
-- Random Forest (ranger) 
 
-
-```{r train models}
+```{r select predictors}
 
 # # select some numeric variables 
 # select_variables <- c("SalePrice", "YearBuilt", "GarageArea", "GarageYrBlt", "X1stFlrSF", "YearRemodAdd") 
@@ -777,6 +777,12 @@ dummies_train_missing3 <- dummies_train_missing2 %>% replace(is.na(.), 0)
 
 head(dummies_train_missing3) 
 
+```
+
+Train models 
+
+```{r train models}
+
 set.seed(123)
 
 # eXtreme Gradient Boosting - installing the package takes time 
@@ -788,18 +794,86 @@ set.seed(123)
 
 
 # Generalized linear model
-
-glm_house <- train(SalePrice ~ .,
+glm_train <- train(SalePrice ~ .,
                    data = dummies_train_missing3,
                    method = "glm",
                    trControl = fitControl) 
 
-glm_house # train model 
+glm_train # train model   
+
+# dummies_train_missing3$pred_glm <- predict(glm_house) 
+# 
+# ggplot(dummies_train_missing3, aes(x = SalePrice, y= pred_glm)) +
+#   geom_point()+
+#   geom_abline()+
+#   geom_smooth(se = F) +
+#   ggtitle("Sale price vs. glm model prediction")
+# 
+# # RMSE vs. standard deviations of Sale price 
+# # RMSE = 38900.37 
+# # sd = 79442.5 
+# 
+# sd(dummies_train_missing3$SalePrice)
+
+
+# Linear regression 
+lm_train <- train(SalePrice ~ .,
+                   data = dummies_train_missing3,
+                   method = "lm",
+                   trControl = fitControl) 
+
+lm_train 
+
+
+```
+
+Build different types of models: 
+- linear regression 
+- GAM model (Generalized additive model)
+- Random Forest 
+- Gradient boosting machines 
+
+```{r build more models}
+
+set.seed(123)
+
+# GAM 
+gam_train <- train(SalePrice ~ .,
+                   data = dummies_train_missing3,
+                   method = "gam",
+                   trControl = fitControl)
+
+gam_train # model information 
+
+
+
+# Random forest 
+rf_train <- train(SalePrice ~ .,
+                   data = dummies_train_missing3,
+                   method = "rf",
+                   trControl = fitControl) 
+
+rf_train # model informatin 
+
 
 ```
 
 
+<!-- Plots:  -->
+<!-- - Prediction vs. ground truth plot  -->
+<!-- - Residual plot  -->
+<!-- - Gain curve  -->
 
+
+<!-- Select the best model  -->
+
+
+<!-- Preprocess unseen data  -->
+
+<!-- Predict unseen data and performance metrics  -->
+
+
+<!-- Tuning model parameters to improve performance  -->
 
 
 
