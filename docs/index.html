@@ -2848,7 +2848,7 @@ div.tocify {
 
 <h1 class="title toc-ignore">Kaggle project: House price regression</h1>
 <h4 class="author">Xin (David) Zhao</h4>
-<h4 class="date">Last edited 27 February 2023</h4>
+<h4 class="date">Last edited 28 February 2023</h4>
 
 </div>
 
@@ -2935,7 +2935,9 @@ libraries</h3>
 <div class="sourceCode" id="cb1"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(tidyverse) </span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(caret) </span>
 <span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(factoextra) <span class="co"># visualize k-means </span></span>
-<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(RANN)</span></code></pre></div>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(RANN)</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(mgcv) <span class="co"># generalized addictive model using splines - non-linear regression</span></span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(ranger)  <span class="co"># random forest </span></span></code></pre></div>
 </div>
 <div id="import-data-sets" class="section level3" number="0.3.2">
 <h3><span class="header-section-number">0.3.2</span> Import data
@@ -3650,11 +3652,11 @@ associated with <code>SalePrice</code>, - <code>OverallQual</code> -
 </div>
 <div id="train-models" class="section level3" number="0.4.3">
 <h3><span class="header-section-number">0.4.3</span> Train models</h3>
-<div class="sourceCode" id="cb54"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb54-1"><a href="#cb54-1" aria-hidden="true" tabindex="-1"></a>fitControl <span class="ot">&lt;-</span> <span class="fu">trainControl</span>(<span class="at">method =</span> <span class="st">&quot;repeatedcv&quot;</span>,</span>
-<span id="cb54-2"><a href="#cb54-2" aria-hidden="true" tabindex="-1"></a>                           <span class="at">number =</span> <span class="dv">10</span>,</span>
-<span id="cb54-3"><a href="#cb54-3" aria-hidden="true" tabindex="-1"></a>                           <span class="at">repeats =</span> <span class="dv">10</span>) </span></code></pre></div>
-<p>Regression models: - eXtreme Gradient Boosting (xgbDART) -
-Generalized linear model (glm) - Random Forest (ranger)</p>
+<p>Set up resampling method. Use <a href="https://rpubs.com/cliex159/881990">k-fold cross validation</a>
+strategy.</p>
+<div class="sourceCode" id="cb54"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb54-1"><a href="#cb54-1" aria-hidden="true" tabindex="-1"></a>fitControl <span class="ot">&lt;-</span> <span class="fu">trainControl</span>(<span class="at">method =</span> <span class="st">&quot;cv&quot;</span>, <span class="co"># cross validation </span></span>
+<span id="cb54-2"><a href="#cb54-2" aria-hidden="true" tabindex="-1"></a>                           <span class="at">number =</span> <span class="dv">10</span>,  <span class="co"># k = 10 </span></span>
+<span id="cb54-3"><a href="#cb54-3" aria-hidden="true" tabindex="-1"></a>                           <span class="at">verboseIter =</span> <span class="cn">TRUE</span>)  </span></code></pre></div>
 <div class="sourceCode" id="cb55"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb55-1"><a href="#cb55-1" aria-hidden="true" tabindex="-1"></a><span class="co"># # select some numeric variables </span></span>
 <span id="cb55-2"><a href="#cb55-2" aria-hidden="true" tabindex="-1"></a><span class="co"># select_variables &lt;- c(&quot;SalePrice&quot;, &quot;YearBuilt&quot;, &quot;GarageArea&quot;, &quot;GarageYrBlt&quot;, &quot;X1stFlrSF&quot;, &quot;YearRemodAdd&quot;) </span></span>
 <span id="cb55-3"><a href="#cb55-3" aria-hidden="true" tabindex="-1"></a></span>
@@ -3673,6 +3675,7 @@ Generalized linear model (glm) - Random Forest (ranger)</p>
 {"columns":[{"label":[""],"name":["_rn_"],"type":[""],"align":["left"]},{"label":["SalePrice"],"name":[1],"type":["int"],"align":["right"]},{"label":["OverallQual"],"name":[2],"type":["dbl"],"align":["right"]},{"label":["YearBuilt"],"name":[3],"type":["dbl"],"align":["right"]},{"label":["GarageArea"],"name":[4],"type":["dbl"],"align":["right"]},{"label":["FullBath"],"name":[5],"type":["dbl"],"align":["right"]},{"label":["GarageYrBlt"],"name":[6],"type":["dbl"],"align":["right"]},{"label":["GarageFinish.Unf"],"name":[7],"type":["dbl"],"align":["right"]},{"label":["X1stFlrSF"],"name":[8],"type":["dbl"],"align":["right"]},{"label":["ExterQual.Gd"],"name":[9],"type":["dbl"],"align":["right"]},{"label":["BsmtQual.TA"],"name":[10],"type":["dbl"],"align":["right"]},{"label":["YearRemodAdd"],"name":[11],"type":["dbl"],"align":["right"]},{"label":["TotRmsAbvGrd"],"name":[12],"type":["dbl"],"align":["right"]},{"label":["GarageType.Detchd"],"name":[13],"type":["dbl"],"align":["right"]},{"label":["Fireplaces"],"name":[14],"type":["dbl"],"align":["right"]}],"data":[{"1":"208500","2":"7","3":"2003","4":"548","5":"2","6":"2003","7":"0","8":"856","9":"1","10":"0","11":"2003","12":"8","13":"0","14":"0","_rn_":"W1"},{"1":"181500","2":"6","3":"1976","4":"460","5":"2","6":"1976","7":"0","8":"1262","9":"0","10":"0","11":"1976","12":"6","13":"0","14":"1","_rn_":"W2"},{"1":"223500","2":"7","3":"2001","4":"608","5":"2","6":"2001","7":"0","8":"920","9":"1","10":"0","11":"2002","12":"6","13":"0","14":"1","_rn_":"W3"},{"1":"140000","2":"7","3":"1915","4":"642","5":"1","6":"1998","7":"1","8":"961","9":"0","10":"1","11":"1970","12":"7","13":"1","14":"1","_rn_":"W4"},{"1":"250000","2":"8","3":"2000","4":"836","5":"2","6":"2000","7":"0","8":"1145","9":"1","10":"0","11":"2000","12":"9","13":"0","14":"1","_rn_":"W5"},{"1":"143000","2":"5","3":"1993","4":"480","5":"1","6":"1993","7":"1","8":"796","9":"0","10":"0","11":"1995","12":"5","13":"0","14":"0","_rn_":"W6"}],"options":{"columns":{"min":{},"max":[10]},"rows":{"min":[10],"max":[10]},"pages":{}}}
   </script>
 </div>
+<p>Train models</p>
 <div class="sourceCode" id="cb56"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb56-1"><a href="#cb56-1" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">123</span>)</span>
 <span id="cb56-2"><a href="#cb56-2" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb56-3"><a href="#cb56-3" aria-hidden="true" tabindex="-1"></a><span class="co"># eXtreme Gradient Boosting - installing the package takes time </span></span>
@@ -3684,25 +3687,267 @@ Generalized linear model (glm) - Random Forest (ranger)</p>
 <span id="cb56-9"><a href="#cb56-9" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb56-10"><a href="#cb56-10" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb56-11"><a href="#cb56-11" aria-hidden="true" tabindex="-1"></a><span class="co"># Generalized linear model</span></span>
-<span id="cb56-12"><a href="#cb56-12" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb56-13"><a href="#cb56-13" aria-hidden="true" tabindex="-1"></a>glm_house <span class="ot">&lt;-</span> <span class="fu">train</span>(SalePrice <span class="sc">~</span> .,</span>
-<span id="cb56-14"><a href="#cb56-14" aria-hidden="true" tabindex="-1"></a>                   <span class="at">data =</span> dummies_train_missing3,</span>
-<span id="cb56-15"><a href="#cb56-15" aria-hidden="true" tabindex="-1"></a>                   <span class="at">method =</span> <span class="st">&quot;glm&quot;</span>,</span>
-<span id="cb56-16"><a href="#cb56-16" aria-hidden="true" tabindex="-1"></a>                   <span class="at">trControl =</span> fitControl) </span>
-<span id="cb56-17"><a href="#cb56-17" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb56-18"><a href="#cb56-18" aria-hidden="true" tabindex="-1"></a>glm_house <span class="co"># train model </span></span></code></pre></div>
+<span id="cb56-12"><a href="#cb56-12" aria-hidden="true" tabindex="-1"></a>glm_train <span class="ot">&lt;-</span> <span class="fu">train</span>(SalePrice <span class="sc">~</span> .,</span>
+<span id="cb56-13"><a href="#cb56-13" aria-hidden="true" tabindex="-1"></a>                   <span class="at">data =</span> dummies_train_missing3,</span>
+<span id="cb56-14"><a href="#cb56-14" aria-hidden="true" tabindex="-1"></a>                   <span class="at">method =</span> <span class="st">&quot;glm&quot;</span>,</span>
+<span id="cb56-15"><a href="#cb56-15" aria-hidden="true" tabindex="-1"></a>                   <span class="at">trControl =</span> fitControl) </span></code></pre></div>
+<pre><code>## + Fold01: parameter=none 
+## - Fold01: parameter=none 
+## + Fold02: parameter=none 
+## - Fold02: parameter=none 
+## + Fold03: parameter=none 
+## - Fold03: parameter=none 
+## + Fold04: parameter=none 
+## - Fold04: parameter=none 
+## + Fold05: parameter=none 
+## - Fold05: parameter=none 
+## + Fold06: parameter=none 
+## - Fold06: parameter=none 
+## + Fold07: parameter=none 
+## - Fold07: parameter=none 
+## + Fold08: parameter=none 
+## - Fold08: parameter=none 
+## + Fold09: parameter=none 
+## - Fold09: parameter=none 
+## + Fold10: parameter=none 
+## - Fold10: parameter=none 
+## Aggregating results
+## Fitting final model on full training set</code></pre>
+<div class="sourceCode" id="cb58"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb58-1"><a href="#cb58-1" aria-hidden="true" tabindex="-1"></a>glm_train <span class="co"># train model   </span></span></code></pre></div>
 <pre><code>## Generalized Linear Model 
 ## 
 ## 1460 samples
 ##   13 predictor
 ## 
 ## No pre-processing
-## Resampling: Cross-Validated (10 fold, repeated 10 times) 
+## Resampling: Cross-Validated (10 fold) 
 ## Summary of sample sizes: 1312, 1313, 1315, 1316, 1314, 1315, ... 
 ## Resampling results:
 ## 
 ##   RMSE      Rsquared   MAE     
-##   38975.62  0.7623945  25781.32</code></pre>
+##   38817.43  0.7613778  25748.89</code></pre>
+<div class="sourceCode" id="cb60"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb60-1"><a href="#cb60-1" aria-hidden="true" tabindex="-1"></a><span class="co"># dummies_train_missing3$pred_glm &lt;- predict(glm_house) </span></span>
+<span id="cb60-2"><a href="#cb60-2" aria-hidden="true" tabindex="-1"></a><span class="co"># </span></span>
+<span id="cb60-3"><a href="#cb60-3" aria-hidden="true" tabindex="-1"></a><span class="co"># ggplot(dummies_train_missing3, aes(x = SalePrice, y= pred_glm)) +</span></span>
+<span id="cb60-4"><a href="#cb60-4" aria-hidden="true" tabindex="-1"></a><span class="co">#   geom_point()+</span></span>
+<span id="cb60-5"><a href="#cb60-5" aria-hidden="true" tabindex="-1"></a><span class="co">#   geom_abline()+</span></span>
+<span id="cb60-6"><a href="#cb60-6" aria-hidden="true" tabindex="-1"></a><span class="co">#   geom_smooth(se = F) +</span></span>
+<span id="cb60-7"><a href="#cb60-7" aria-hidden="true" tabindex="-1"></a><span class="co">#   ggtitle(&quot;Sale price vs. glm model prediction&quot;)</span></span>
+<span id="cb60-8"><a href="#cb60-8" aria-hidden="true" tabindex="-1"></a><span class="co"># </span></span>
+<span id="cb60-9"><a href="#cb60-9" aria-hidden="true" tabindex="-1"></a><span class="co"># # RMSE vs. standard deviations of Sale price </span></span>
+<span id="cb60-10"><a href="#cb60-10" aria-hidden="true" tabindex="-1"></a><span class="co"># # RMSE = 38900.37 </span></span>
+<span id="cb60-11"><a href="#cb60-11" aria-hidden="true" tabindex="-1"></a><span class="co"># # sd = 79442.5 </span></span>
+<span id="cb60-12"><a href="#cb60-12" aria-hidden="true" tabindex="-1"></a><span class="co"># </span></span>
+<span id="cb60-13"><a href="#cb60-13" aria-hidden="true" tabindex="-1"></a><span class="co"># sd(dummies_train_missing3$SalePrice)</span></span>
+<span id="cb60-14"><a href="#cb60-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb60-15"><a href="#cb60-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb60-16"><a href="#cb60-16" aria-hidden="true" tabindex="-1"></a><span class="co"># Linear regression </span></span>
+<span id="cb60-17"><a href="#cb60-17" aria-hidden="true" tabindex="-1"></a>lm_train <span class="ot">&lt;-</span> <span class="fu">train</span>(SalePrice <span class="sc">~</span> .,</span>
+<span id="cb60-18"><a href="#cb60-18" aria-hidden="true" tabindex="-1"></a>                   <span class="at">data =</span> dummies_train_missing3,</span>
+<span id="cb60-19"><a href="#cb60-19" aria-hidden="true" tabindex="-1"></a>                   <span class="at">method =</span> <span class="st">&quot;lm&quot;</span>,</span>
+<span id="cb60-20"><a href="#cb60-20" aria-hidden="true" tabindex="-1"></a>                   <span class="at">trControl =</span> fitControl) </span></code></pre></div>
+<pre><code>## + Fold01: intercept=TRUE 
+## - Fold01: intercept=TRUE 
+## + Fold02: intercept=TRUE 
+## - Fold02: intercept=TRUE 
+## + Fold03: intercept=TRUE 
+## - Fold03: intercept=TRUE 
+## + Fold04: intercept=TRUE 
+## - Fold04: intercept=TRUE 
+## + Fold05: intercept=TRUE 
+## - Fold05: intercept=TRUE 
+## + Fold06: intercept=TRUE 
+## - Fold06: intercept=TRUE 
+## + Fold07: intercept=TRUE 
+## - Fold07: intercept=TRUE 
+## + Fold08: intercept=TRUE 
+## - Fold08: intercept=TRUE 
+## + Fold09: intercept=TRUE 
+## - Fold09: intercept=TRUE 
+## + Fold10: intercept=TRUE 
+## - Fold10: intercept=TRUE 
+## Aggregating results
+## Fitting final model on full training set</code></pre>
+<div class="sourceCode" id="cb62"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb62-1"><a href="#cb62-1" aria-hidden="true" tabindex="-1"></a>lm_train </span></code></pre></div>
+<pre><code>## Linear Regression 
+## 
+## 1460 samples
+##   13 predictor
+## 
+## No pre-processing
+## Resampling: Cross-Validated (10 fold) 
+## Summary of sample sizes: 1315, 1315, 1315, 1314, 1313, 1313, ... 
+## Resampling results:
+## 
+##   RMSE      Rsquared  MAE     
+##   39307.48  0.761776  25870.21
+## 
+## Tuning parameter &#39;intercept&#39; was held constant at a value of TRUE</code></pre>
+<p>Build different types of models: - linear regression - GAM model
+(Generalized additive model) - Random Forest - Gradient boosting
+machines</p>
+<div class="sourceCode" id="cb64"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb64-1"><a href="#cb64-1" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">123</span>)</span>
+<span id="cb64-2"><a href="#cb64-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb64-3"><a href="#cb64-3" aria-hidden="true" tabindex="-1"></a><span class="co"># GAM </span></span>
+<span id="cb64-4"><a href="#cb64-4" aria-hidden="true" tabindex="-1"></a>gam_train <span class="ot">&lt;-</span> <span class="fu">train</span>(SalePrice <span class="sc">~</span> .,</span>
+<span id="cb64-5"><a href="#cb64-5" aria-hidden="true" tabindex="-1"></a>                   <span class="at">data =</span> dummies_train_missing3,</span>
+<span id="cb64-6"><a href="#cb64-6" aria-hidden="true" tabindex="-1"></a>                   <span class="at">method =</span> <span class="st">&quot;gam&quot;</span>,</span>
+<span id="cb64-7"><a href="#cb64-7" aria-hidden="true" tabindex="-1"></a>                   <span class="at">trControl =</span> fitControl)</span></code></pre></div>
+<pre><code>## + Fold01: select= TRUE, method=GCV.Cp 
+## - Fold01: select= TRUE, method=GCV.Cp 
+## + Fold01: select=FALSE, method=GCV.Cp 
+## - Fold01: select=FALSE, method=GCV.Cp 
+## + Fold02: select= TRUE, method=GCV.Cp 
+## - Fold02: select= TRUE, method=GCV.Cp 
+## + Fold02: select=FALSE, method=GCV.Cp 
+## - Fold02: select=FALSE, method=GCV.Cp 
+## + Fold03: select= TRUE, method=GCV.Cp 
+## - Fold03: select= TRUE, method=GCV.Cp 
+## + Fold03: select=FALSE, method=GCV.Cp 
+## - Fold03: select=FALSE, method=GCV.Cp 
+## + Fold04: select= TRUE, method=GCV.Cp 
+## - Fold04: select= TRUE, method=GCV.Cp 
+## + Fold04: select=FALSE, method=GCV.Cp 
+## - Fold04: select=FALSE, method=GCV.Cp 
+## + Fold05: select= TRUE, method=GCV.Cp 
+## - Fold05: select= TRUE, method=GCV.Cp 
+## + Fold05: select=FALSE, method=GCV.Cp 
+## - Fold05: select=FALSE, method=GCV.Cp 
+## + Fold06: select= TRUE, method=GCV.Cp 
+## - Fold06: select= TRUE, method=GCV.Cp 
+## + Fold06: select=FALSE, method=GCV.Cp 
+## - Fold06: select=FALSE, method=GCV.Cp 
+## + Fold07: select= TRUE, method=GCV.Cp 
+## - Fold07: select= TRUE, method=GCV.Cp 
+## + Fold07: select=FALSE, method=GCV.Cp 
+## - Fold07: select=FALSE, method=GCV.Cp 
+## + Fold08: select= TRUE, method=GCV.Cp 
+## - Fold08: select= TRUE, method=GCV.Cp 
+## + Fold08: select=FALSE, method=GCV.Cp 
+## - Fold08: select=FALSE, method=GCV.Cp 
+## + Fold09: select= TRUE, method=GCV.Cp 
+## - Fold09: select= TRUE, method=GCV.Cp 
+## + Fold09: select=FALSE, method=GCV.Cp 
+## - Fold09: select=FALSE, method=GCV.Cp 
+## + Fold10: select= TRUE, method=GCV.Cp 
+## - Fold10: select= TRUE, method=GCV.Cp 
+## + Fold10: select=FALSE, method=GCV.Cp 
+## - Fold10: select=FALSE, method=GCV.Cp 
+## Aggregating results
+## Selecting tuning parameters
+## Fitting select = TRUE, method = GCV.Cp on full training set</code></pre>
+<div class="sourceCode" id="cb66"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb66-1"><a href="#cb66-1" aria-hidden="true" tabindex="-1"></a>gam_train <span class="co"># model information </span></span></code></pre></div>
+<pre><code>## Generalized Additive Model using Splines 
+## 
+## 1460 samples
+##   13 predictor
+## 
+## No pre-processing
+## Resampling: Cross-Validated (10 fold) 
+## Summary of sample sizes: 1312, 1313, 1315, 1316, 1314, 1315, ... 
+## Resampling results across tuning parameters:
+## 
+##   select  RMSE      Rsquared   MAE     
+##   FALSE   36495.42  0.7890589  24242.16
+##    TRUE   36367.62  0.7903703  24204.26
+## 
+## Tuning parameter &#39;method&#39; was held constant at a value of GCV.Cp
+## RMSE was used to select the optimal model using the smallest value.
+## The final values used for the model were select = TRUE and method = GCV.Cp.</code></pre>
+<div class="sourceCode" id="cb68"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb68-1"><a href="#cb68-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Random forest </span></span>
+<span id="cb68-2"><a href="#cb68-2" aria-hidden="true" tabindex="-1"></a>rf_train <span class="ot">&lt;-</span> <span class="fu">train</span>(SalePrice <span class="sc">~</span> .,</span>
+<span id="cb68-3"><a href="#cb68-3" aria-hidden="true" tabindex="-1"></a>                   <span class="at">data =</span> dummies_train_missing3,</span>
+<span id="cb68-4"><a href="#cb68-4" aria-hidden="true" tabindex="-1"></a>                   <span class="at">method =</span> <span class="st">&quot;rf&quot;</span>,</span>
+<span id="cb68-5"><a href="#cb68-5" aria-hidden="true" tabindex="-1"></a>                   <span class="at">trControl =</span> fitControl) </span></code></pre></div>
+<pre><code>## + Fold01: mtry= 2 
+## - Fold01: mtry= 2 
+## + Fold01: mtry= 7 
+## - Fold01: mtry= 7 
+## + Fold01: mtry=13 
+## - Fold01: mtry=13 
+## + Fold02: mtry= 2 
+## - Fold02: mtry= 2 
+## + Fold02: mtry= 7 
+## - Fold02: mtry= 7 
+## + Fold02: mtry=13 
+## - Fold02: mtry=13 
+## + Fold03: mtry= 2 
+## - Fold03: mtry= 2 
+## + Fold03: mtry= 7 
+## - Fold03: mtry= 7 
+## + Fold03: mtry=13 
+## - Fold03: mtry=13 
+## + Fold04: mtry= 2 
+## - Fold04: mtry= 2 
+## + Fold04: mtry= 7 
+## - Fold04: mtry= 7 
+## + Fold04: mtry=13 
+## - Fold04: mtry=13 
+## + Fold05: mtry= 2 
+## - Fold05: mtry= 2 
+## + Fold05: mtry= 7 
+## - Fold05: mtry= 7 
+## + Fold05: mtry=13 
+## - Fold05: mtry=13 
+## + Fold06: mtry= 2 
+## - Fold06: mtry= 2 
+## + Fold06: mtry= 7 
+## - Fold06: mtry= 7 
+## + Fold06: mtry=13 
+## - Fold06: mtry=13 
+## + Fold07: mtry= 2 
+## - Fold07: mtry= 2 
+## + Fold07: mtry= 7 
+## - Fold07: mtry= 7 
+## + Fold07: mtry=13 
+## - Fold07: mtry=13 
+## + Fold08: mtry= 2 
+## - Fold08: mtry= 2 
+## + Fold08: mtry= 7 
+## - Fold08: mtry= 7 
+## + Fold08: mtry=13 
+## - Fold08: mtry=13 
+## + Fold09: mtry= 2 
+## - Fold09: mtry= 2 
+## + Fold09: mtry= 7 
+## - Fold09: mtry= 7 
+## + Fold09: mtry=13 
+## - Fold09: mtry=13 
+## + Fold10: mtry= 2 
+## - Fold10: mtry= 2 
+## + Fold10: mtry= 7 
+## - Fold10: mtry= 7 
+## + Fold10: mtry=13 
+## - Fold10: mtry=13 
+## Aggregating results
+## Selecting tuning parameters
+## Fitting mtry = 7 on full training set</code></pre>
+<div class="sourceCode" id="cb70"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb70-1"><a href="#cb70-1" aria-hidden="true" tabindex="-1"></a>rf_train <span class="co"># model informatin </span></span></code></pre></div>
+<pre><code>## Random Forest 
+## 
+## 1460 samples
+##   13 predictor
+## 
+## No pre-processing
+## Resampling: Cross-Validated (10 fold) 
+## Summary of sample sizes: 1314, 1313, 1315, 1313, 1315, 1314, ... 
+## Resampling results across tuning parameters:
+## 
+##   mtry  RMSE      Rsquared   MAE     
+##    2    32868.06  0.8348889  20891.70
+##    7    31840.89  0.8381729  20453.09
+##   13    32498.04  0.8308760  20975.24
+## 
+## RMSE was used to select the optimal model using the smallest value.
+## The final value used for the model was mtry = 7.</code></pre>
+<!-- Plots:  -->
+<!-- - Prediction vs. ground truth plot  -->
+<!-- - Residual plot  -->
+<!-- - Gain curve  -->
+<!-- Select the best model  -->
+<!-- Preprocess unseen data  -->
+<!-- Predict unseen data and performance metrics  -->
+<!-- Tuning model parameters to improve performance  -->
 </div>
 </div>
 
