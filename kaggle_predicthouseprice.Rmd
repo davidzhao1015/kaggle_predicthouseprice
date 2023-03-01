@@ -128,6 +128,8 @@ library(factoextra) # visualize k-means
 library(RANN)
 library(mgcv) # generalized addictive model using splines - non-linear regression
 library(ranger)  # random forest 
+library(h2o) # gradient boosting machines 
+library(WVPlots)  # draw gain curve plots 
 
 ```
 
@@ -779,7 +781,11 @@ head(dummies_train_missing3)
 
 ```
 
-Train models 
+Train models:
+- Generalized linear model 
+- Linear regression 
+- GAM model (Generalized additive model)
+- Random Forest 
 
 ```{r train models}
 
@@ -822,20 +828,9 @@ lm_train <- train(SalePrice ~ .,
                    method = "lm",
                    trControl = fitControl) 
 
-lm_train 
+lm_train  # model info 
 
 
-```
-
-Build different types of models: 
-- linear regression 
-- GAM model (Generalized additive model)
-- Random Forest 
-- Gradient boosting machines 
-
-```{r build more models}
-
-set.seed(123)
 
 # GAM 
 gam_train <- train(SalePrice ~ .,
@@ -853,27 +848,147 @@ rf_train <- train(SalePrice ~ .,
                    method = "rf",
                    trControl = fitControl) 
 
-rf_train # model informatin 
+rf_train # model information 
+
+
+
+
+# # Gradient boosting machines  
+# gbm_train <- train(SalePrice ~ .,
+#                    data = dummies_train_missing3,
+#                    method = "gbm_h2o", 
+#                    trControl = fitControl)
+# 
+# gbm_train # model information 
 
 
 ```
 
 
-<!-- Plots:  -->
-<!-- - Prediction vs. ground truth plot  -->
-<!-- - Residual plot  -->
-<!-- - Gain curve  -->
+### Graphically evaluate models 
+
+Use different plots to evaluate models, 
+- Prediction vs. ground truth plot
+- Residual plot
+- Gain curve
+
+```{r plot models}
+
+# add predicted data to the train set 
+dummies_train_missing3$pred_lm <- predict(lm_train) # lm 
+dummies_train_missing3$pre_glm <- predict(glm_train) # glm 
+dummies_train_missing3$pred_gam <- predict(gam_train)  # gam  
+dummies_train_missing3$pred_rf <- predict(rf_train)  # rf 
 
 
-<!-- Select the best model  -->
+dummies_train_missing4 <- dummies_train_missing3 %>% 
+  mutate(residual_lm = pred_lm - SalePrice) %>% 
+  mutate(residual_glm = pred_glm - SalePrice) %>% 
+  mutate(residual_gam = pred_gam - SalePrice) %>% 
+  mutate(residual_rf = pred_rf - SalePrice) 
 
 
-<!-- Preprocess unseen data  -->
 
-<!-- Predict unseen data and performance metrics  -->
+# prediction vs. truth plots 
+pred_truth_df <- dummies_train_missing3 %>% 
+  select(pred_lm, pred_glm, pred_gam, pred_rf, SalePrice) %>% 
+  gather(key = "models", value = "prediction", -SalePrice) 
+
+ggplot(pred_truth_df, aes(x= SalePrice, y= prediction, color = models)) + 
+  geom_point() +
+  geom_abline(slope = 1, intercept = 0, 
+              linetype = "dashed", color = "royalblue", size = 1)+
+  facet_wrap(vars(models))
 
 
-<!-- Tuning model parameters to improve performance  -->
+# residual plot 
+
+res_truth_df <- dummies_train_missing4 %>% 
+  select(residual_lm, residual_glm, residual_gam, residual_rf, SalePrice) %>% 
+  gather(key = "models", value = "residual", -SalePrice) %>% 
+  mutate(model = str_sub(.$models, start = 10)) %>% 
+  select(-models) 
+  
+
+ggplot(res_truth_df, aes(x=SalePrice, y= residual, color = model))+
+  geom_point(alpha = 0.8) +
+  geom_hline(yintercept = 0,
+             linetype = "dashed", color = "royalblue", size = 1) +
+  facet_wrap(vars(model))
+  
+
+
+```
+
+
+Draw the gain curves using `WVPlots` [package](https://www.rdocumentation.org/packages/WVPlots/versions/1.3.2/topics/GainCurvePlot). The data camp course, "Supervised machine learning regression" explains the gain curves in more detailed. 
+
+```{r gain curves}
+
+# random forest 
+GainCurvePlot(dummies_train_missing3, "pred_rf", "SalePrice", "Random Forest model for home price")   
+
+# 
+# # lm 
+# GainCurvePlot(dummies_train_missing3, "pred_lm", "SalePrice", "Linear model for home price")  
+
+
+```
+
+In the gain curve, the x-axis is sale prices in model-sorted order (decreasing). The y-axis is the fraction of total accumulatd  sale price. The wizard curve represents the perfect model. 
+
+### Select the best model
+
+Apply `postResample` function in caret package to estimate measures of model performance, including
+
+- RMSE
+- Rsquared 
+- MAE 
+
+```{r model performance metrics}
+
+rf_perf <- postResample(pred = dummies_train_missing3$pred_rf, obs = dummies_train_missing3$SalePrice) %>% as.data.frame() # rf 
+
+lm_perf <- postResample(pred = dummies_train_missing3$pred_lm, obs = dummies_train_missing3$SalePrice) %>% as.data.frame() # lm 
+
+gam_perf <-  postResample(pred = dummies_train_missing3$pred_gam, obs = dummies_train_missing3$SalePrice) %>% as.data.frame()  # gam 
+
+glm_perf <-  postResample(pred = dummies_train_missing3$pred_glm, obs = dummies_train_missing3$SalePrice) %>% as.data.frame() # glm 
+
+
+merg_perf <- data.frame(rf = rf_per,
+           lm = lm_perf,
+           gam = gam_perf,
+           glm = glm_perf) 
+
+colnames(merg_perf) <- c("rf", "lm", "gam", "glm")
+
+merg_perf <- merg_perf %>% 
+  rownames_to_column("measure") 
+
+
+merg_perf <- merg_perf %>%
+  gather(key = "model", value = "performance", -measure) %>% 
+  mutate(performance = round(performance, 2)) 
+
+# bar plot to compare single value by measures 
+ggplot(merg_perf, aes(x = model, y = performance)) +
+  geom_bar(aes(fill = model), stat = "identity", position = "dodge") +
+  facet_wrap(vars(measure), scales = "free_y") 
+
+
+
+```
+
+The random forest model outperforms counterparts based on three performance measures. Thus pick the random forest model to predict test set. 
+
+
+### Preproces the test set
+
+### Predict the test set 
+
+
+<!-- Tuning model parameters to improve performance -->
 
 
 
