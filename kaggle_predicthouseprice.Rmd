@@ -796,7 +796,6 @@ top_univar
 
 Set up re-sampling method. Use [k-fold cross validation](https://rpubs.com/cliex159/881990) strategy. 
 
-
 ```{r cross validation}
 
 fitControl <- trainControl(method = "cv", # cross validation 
@@ -909,48 +908,56 @@ Use different plots to evaluate models,
 
 ```{r plot models}
 
-# # add predicted data to the train set 
-dummies_train_missing3$pred_lm <- predict(lm_train) # lm
-dummies_train_missing3$pred_glm <- predict(glm_train) # glm
-dummies_train_missing3$pred_gam <- predict(gam_train)  # gam
-dummies_train_missing3$pred_rf <- predict(rf_train)  # rf
+# copy the train set 
+dummies_train_missing4 <- dummies_train_missing3 
 
+# prediction on train set with 4 models 
+dummies_train_missing4$pred_lm <- predict(lm_train) # lm
+dummies_train_missing4$pred_glm <- predict(glm_train) # glm
+dummies_train_missing4$pred_gam <- predict(gam_train)  # gam
+dummies_train_missing4$pred_rf <- predict(rf_train)  # rf
 
-# dummies_train_missing4 <- dummies_train_missing3 %>% 
+# calculate residuals 
+dummies_train_missing4 <- dummies_train_missing4 %>%
   mutate(residual_lm = pred_lm - SalePrice) %>%
   mutate(residual_glm = pred_glm - SalePrice) %>%
   mutate(residual_gam = pred_gam - SalePrice) %>%
   mutate(residual_rf = pred_rf - SalePrice)
 
+```
 
-# 
-# # prediction vs. truth plots 
-pred_truth_df <- dummies_train_missing3 %>%
+
+```{r pred-truth plot}
+# prediction vs. truth plots
+pred_truth_df <- dummies_train_missing4 %>%
   select(pred_lm, pred_glm, pred_gam, pred_rf, SalePrice) %>%
   gather(key = "models", value = "prediction", -SalePrice)
 
 ggplot(pred_truth_df, aes(x= SalePrice, y= prediction, color = models)) +
   geom_point() +
   geom_abline(slope = 1, intercept = 0,
-              linetype = "dashed", color = "royalblue", size = 1)+
-  facet_wrap(vars(models))
+              linetype = "dashed", color = "royalblue", linewidth = 1)+
+  facet_wrap(vars(models)) +
+  ggtitle("Prediction vs. groud truth in the train set")
+
+```
 
 
-# # residual plot 
 
+```{r residual plot}
+
+# residual plot 
 res_truth_df <- dummies_train_missing4 %>%
   select(residual_lm, residual_glm, residual_gam, residual_rf, SalePrice) %>%
   gather(key = "models", value = "residual", -SalePrice) %>%
   mutate(model = str_sub(.$models, start = 10)) %>%
   select(-models)
 
-
 ggplot(res_truth_df, aes(x=SalePrice, y= residual, color = model))+
   geom_point(alpha = 0.8) +
   geom_hline(yintercept = 0,
              linetype = "dashed", color = "royalblue", size = 1) +
   facet_wrap(vars(model))
-
 
 ```
 
@@ -959,8 +966,8 @@ Draw the gain curves using `WVPlots` [package](https://www.rdocumentation.org/pa
 
 ```{r gain curves}
 
-# random forest 
-GainCurvePlot(dummies_train_missing3, 
+# random forest - gain curve 
+GainCurvePlot(dummies_train_missing4, 
               "pred_rf", 
               "SalePrice", 
               "Random Forest model for home price")
@@ -980,25 +987,25 @@ Apply `postResample` function in caret package to estimate measures of model per
 
 ```{r model performance metrics}
 
-rf_perf <- postResample(pred = dummies_train_missing3$pred_rf, obs = dummies_train_missing3$SalePrice) %>% as.data.frame() # rf
+rf_perf <- postResample(pred = dummies_train_missing4$pred_rf, obs = dummies_train_missing4$SalePrice) %>% as.data.frame() # rf
 
-lm_perf <- postResample(pred = dummies_train_missing3$pred_lm, obs = dummies_train_missing3$SalePrice) %>% as.data.frame() # lm
+lm_perf <- postResample(pred = dummies_train_missing4$pred_lm, obs = dummies_train_missing4$SalePrice) %>% as.data.frame() # lm
 
-gam_perf <-  postResample(pred = dummies_train_missing3$pred_gam, obs = dummies_train_missing3$SalePrice) %>% as.data.frame()  # gam
+gam_perf <-  postResample(pred = dummies_train_missing4$pred_gam, obs = dummies_train_missing4$SalePrice) %>% as.data.frame()  # gam
 
-glm_perf <-  postResample(pred = dummies_train_missing3$pred_glm, obs = dummies_train_missing3$SalePrice) %>% as.data.frame() # glm
+glm_perf <-  postResample(pred = dummies_train_missing4$pred_glm, obs = dummies_train_missing4$SalePrice) %>% as.data.frame() # glm
 
 
+# merge above data frames 
 merg_perf <- data.frame(rf = rf_perf,
-           lm = lm_perf,
-           gam = gam_perf,
-           glm = glm_perf)
+                        lm = lm_perf,
+                        gam = gam_perf,
+                        glm = glm_perf)
 
-colnames(merg_perf) <- c("rf", "lm", "gam", "glm")
+colnames(merg_perf) <- c("rf", "lm", "gam", "glm")  # rename columns 
 
 merg_perf <- merg_perf %>%
-  rownames_to_column("measure")
-
+  rownames_to_column("measure")  # row to column  
 
 merg_perf <- merg_perf %>%
   gather(key = "model", value = "performance", -measure) %>%
@@ -1014,7 +1021,6 @@ ggplot(merg_perf, aes(x = model, y = performance)) +
 ```
 
 The random forest model outperforms counterparts based on three performance measures. Thus pick the random forest model to predict test set. 
-
 
 
 ### Preprocess the test set
