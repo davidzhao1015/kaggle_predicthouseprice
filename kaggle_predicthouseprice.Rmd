@@ -130,6 +130,7 @@ library(mgcv) # generalized addictive model using splines - non-linear regressio
 library(ranger)  # random forest 
 library(h2o) # gradient boosting machines 
 library(WVPlots)  # draw gain curve plots 
+library(xgboost)  # eXtreme gradient boosting 
 
 ```
 
@@ -634,7 +635,15 @@ miss_value2 %>%
 
 ### Feature selection 
 
-#### Feature selection - ordination analysis
+The [tutorial](https://topepo.github.io/caret/feature-selection-using-univariate-filters.html) of caret package provides an overview of various mehtods for feature selection:
+- Wrapper 
+  - recursive feature eliminaiton 
+  - genetic algorithms 
+  - simulated annealing 
+- Filter 
+  - univariate filters 
+
+#### Feature selection - PCA
 
 Up next, perform unsupervised machine learning to selected numeric variables, 
 - k-means clustering 
@@ -674,7 +683,6 @@ Conduct k-means clustering analysis on the filtered variables in the train set. 
 # #           by = list(cluster = kmeans_train$cluster), 
 # #           mean) %>% 
 # #         select(cluster, SalePrice)
-
 
 ```
 
@@ -792,6 +800,35 @@ top_univar
 
 ```
 
+Alternatively, use `sbf` function in the `caret` package to implement univariate filtering. Follow the code example in the caret [tutorial](https://topepo.github.io/caret/feature-selection-using-univariate-filters.html).  
+
+```{r sbf-univar-filter}
+
+filterCtrl <- sbfControl(functions = rfSBF,
+                         method = "repeatedcv",
+                         repeats = 5) 
+
+set.seed(123)
+
+predictors <- dummies_train_missing3 %>% select(-SalePrice) 
+
+rfWithinFilter <- sbf(predictors, 
+                      dummies_train_missing3$SalePrice,
+                      sbfControl = filterCtrl)
+
+
+rfWithinFilter 
+
+
+# selected variables of importance 
+sbf_vars <- rfWithinFilter$variables[1]  %>% 
+  as.data.frame() %>% 
+  pull(selectedVars)
+
+
+```
+
+
 
 ### Train models 
 
@@ -814,6 +851,9 @@ top_univar
 # features derived from PCA 
 top_var_pca 
 
+# features derived from sbf - univariate filtering 
+sbf_vars 
+
 ```
 
 
@@ -822,7 +862,7 @@ top_var_pca
 # subset important features from train set  
 dummies_train_missing2 <- 
   dummies_train_missing %>% 
-  select(all_of(top_univar))  
+  select(all_of(sbf_vars), SalePrice)  
 
 # deal with missing values 
 dummies_train_missing3 <- dummies_train_missing2 %>% replace(is.na(.), 0)
@@ -837,18 +877,9 @@ Train models:
 - GAM model (Generalized additive model)
 - Random Forest 
 
-```{r train models}
+```{r train models, message=FALSE, results='hide'}
 
 set.seed(123)  # ensure reproducibility 
-
-# eXtreme Gradient Boosting - installing the package takes time 
-# xgb_train <- train(SalePrice ~ .,
-#              data = dummies_train_missing3,
-#              method = "xgbDART",
-#              trControl = fitControl,
-#              verbose = FALSE)
-# 
-# xgb_train # model information 
 
 
 # Generalized linear model
@@ -867,7 +898,6 @@ lm_train <- train(SalePrice ~ .,
                    trControl = fitControl)
 
 lm_train  # model info
-
 
 
 # GAM 
@@ -889,13 +919,13 @@ rf_train <- train(SalePrice ~ .,
 rf_train # model information  
 
 
-# Gradient boosting machines  
-# gbm_train <- train(SalePrice ~ .,
+# eXtreme Gradient boosting   - takes very long time to run 
+# xgb_train <- train(SalePrice ~ .,
 #                    data = dummies_train_missing3,
-#                    method = "gbm_h2o",
-#                    trControl = fitControl)
+#                    method = "xgbDART",
+#                    trControl = fitControl) 
 # 
-# gbm_train # model information
+# xgb_train # model information
 
 ```
 
@@ -1098,11 +1128,11 @@ dummy_test_df_rm.na$SalePrice_pred <- predict(rf_train_finalmod,  # optimal Rand
 # histogram plots 
 dummies_train_missing4 %>% 
   ggplot(aes(x= pred_rf))+
-  geom_histogram(color = "blue", alpha = 0.1) +  # prediction in train set 
-  geom_histogram(aes(x = SalePrice), color = "yellow", alpha = 0.1) +  # truth in train set 
+  geom_histogram(color = "blue", fill="blue", alpha = 0.1) +  # prediction in train set 
+  geom_histogram(aes(x = SalePrice), color = "yellow", fill= "yellow", alpha = 0.1) +  # truth in train set 
   geom_histogram(data = dummy_test_df_rm.na, # prediction in test set  
                  aes(x = SalePrice_pred), 
-                 color = "red", alpha = 0.1) +
+                 color = "red", fill="red", alpha = 0.1) +
   scale_x_log10()  # log10 scale 
 
 
@@ -1110,13 +1140,55 @@ dummies_train_missing4 %>%
 ```
 
 
+#### Feature importance based on Random Forest model
+
+Which features are most predictive? Use `varImp` function in the `caret` package to estimate variable ranking in either model-dependent and model-independent metrics. 
+
+The [tutorial](https://topepo.github.io/caret/variable-importance.html) of caret package provides detailed explanation for `varImp` function. 
+
+```{r feature importance}
+
+# Random Forest dependent metrics  
+rfImp <- varImp(rf_train, 
+                scale = T, # scale = F, avoids normalization  
+                useModel = T)  
+
+# alternatively, model independent metrics 
+variable_Imp  <- varImp(rf_train, 
+                        scale = T, # scale = F, avoids normalization  
+                        useModel = FALSE)  # non-specific   
 
 
+# # plot with base R 
+# plot(rfImp, top = 10)
+
+```
+
+Visualize variable rankings based on two metrics using `ggplot2`. 
+
+```{r plot variable ranking}
+
+# bar plot 
+rfImp_df <- rfImp$importance %>% 
+  rownames_to_column("variable") 
+
+rfImp_df %>% 
+  ggplot(aes(y=Overall, x=reorder(variable, Overall))) +
+  geom_bar(stat = "identity", fill = "royalblue") + 
+  coord_flip() +
+  ggtitle("Feature importance based on Random Forest model") +
+  labs(x = "", y="")
 
 
+```
 
-
-
-
+Detailed information for each variables:
+- `OverllQual`: Overall material and finish quality
+- `X1stFlrSF`: unknown 
+- `GarageCars_3`: Size of garage in car capacity 
+- `GarageArea`: Size of garage in square feet
+- `YearBuilt`: Original construction date
+- `TotRmsAbvGrd`: Total rooms above grade (does not include bathrooms)
+- `YearRemodAdd`: Remodel date 
 
 
