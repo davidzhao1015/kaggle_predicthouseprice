@@ -810,12 +810,11 @@ filterCtrl <- sbfControl(functions = rfSBF,
 
 set.seed(123)
 
-predictors <- dummies_train_missing3 %>% select(-SalePrice) 
+predictors <- dummies_train_missing %>%  select(-SalePrice) %>% replace(is.na(.), 0) 
 
 rfWithinFilter <- sbf(predictors, 
-                      dummies_train_missing3$SalePrice,
+                      dummies_train_missing$SalePrice,
                       sbfControl = filterCtrl)
-
 
 rfWithinFilter 
 
@@ -827,9 +826,6 @@ sbf_vars <- rfWithinFilter$variables[1]  %>%
 
 
 ```
-
-
-
 ### Train models 
 
 Set up re-sampling method. Use [k-fold cross validation](https://rpubs.com/cliex159/881990) strategy. 
@@ -915,6 +911,7 @@ rf_train <- train(SalePrice ~ .,
                    data = dummies_train_missing3,
                    method = "rf",
                    trControl = fitControl) 
+
 
 rf_train # model information  
 
@@ -1173,6 +1170,8 @@ rfImp_df <- rfImp$importance %>%
   rownames_to_column("variable") 
 
 rfImp_df %>% 
+  arrange(desc(Overall)) %>% 
+  head(12) %>% 
   ggplot(aes(y=Overall, x=reorder(variable, Overall))) +
   geom_bar(stat = "identity", fill = "royalblue") + 
   coord_flip() +
