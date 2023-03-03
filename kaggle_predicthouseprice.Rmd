@@ -197,7 +197,6 @@ The test set contains `r dim(test_df)[1]` observations and
 The target variable to predict is `SalePrice` - the property's sale price in dollars.  
 
 ```{r  EDA-response-var}
-
 # distribution of the response variable in the train set 
 ggplot(data = train_df, aes(x = SalePrice/1000)) +
         geom_histogram(binwidth = 10, fill = "royalblue", alpha = 0.8) +
@@ -227,7 +226,7 @@ sum(is.na(train_df$SalePrice))  # print 0
 
 ```{r numeric-var}
 
-# put Id column to row names 
+# put Id column to row names in train set 
 train_df_id  <- train_df %>% 
   mutate(Id = paste("W", Id, sep = "")) %>%  # add "W" next to Id 
   column_to_rownames("Id")
@@ -241,6 +240,7 @@ The train set has 79 independent variables plus one response variable for 1460 s
 
 
 ```{r}
+
 # identify numeric variables and variables with >10 unique values 
 var_unique <- sapply(train_df_id, function(x) length(unique(x))) %>% 
     as.data.frame() 
@@ -273,6 +273,7 @@ is_num_var2
 
 ```
 25 numeric variables other than the response variable `SalePrice`. 
+
 
 
 ```{r category variable}
@@ -521,7 +522,7 @@ The [website](https://topepo.github.io/caret/pre-processing.html#creating-dummy-
 
 Identify zero- and near-zero variance variables, or either. 
 
-```{r}
+```{r nzv}
 
 # near-zero variance 
 nzv <- nearZeroVar(dummies_train_df, saveMetrics = F) 
@@ -1033,9 +1034,22 @@ test_df2 <- test_df %>%
         mutate(Id = paste("W", as.character(Id), sep = "")) %>%  # keep id as character variables 
         column_to_rownames("Id")  
 
+# numeric variables 
+test_df_num <- test_df2[ ,is_num_var2]  
+
+# convert character variables to factors 
+test_df_fact  <- test_df2 %>% 
+  dplyr::select(all_of(is_fact_var)) %>%   # subset 54 non-numeric variables and a response variable 
+  mutate_all(., as.factor) # convert character variables to factors 
+
+# combine numeric variables and factors 
+test_df_comb <- cbind(test_df_fact, test_df_num)  
+
+
+
 
 # double-check if any factor only has one level 
-factor_test <- sapply(test_df2, function(x) length(levels(x))) %>% 
+factor_test <- sapply(test_df_comb, function(x) length(levels(x))) %>% 
   as.data.frame() %>% 
   rownames_to_column("variable") 
 
@@ -1045,23 +1059,19 @@ factor_test %>%
   filter(level == 1) %>% 
   pull(variable)
 
-
 # drop the factor, 'Utilities'
-test_df3 <- test_df2 %>% 
+test_df_comb2 <- test_df_comb %>% 
   select(-Utilities) 
 
 
-# convert factor variables into dummy variables (i.e., one-hot-encoding)
-dummies_test <- dummyVars(~.,   # formula excluding a one-level factor 
-                          data = test_df3, 
-                          fullRank = TRUE,
-                          sep = "_") 
 
-dummies_test # 42 factors
+# create dummy variables 
+dummy_test <- dummyVars(~., data = test_df_comb2,
+                           fullRank = TRUE,
+                           sep = "_")  
 
-
-# dummy variables created 
-dummies_test_df <- data.frame(predict(dummies_test, newdata = test_df3)) 
+dummy_test_df <- data.frame(predict(dummy_test, 
+                                    newdata = test_df_comb2)) 
 
 ```
 
@@ -1074,16 +1084,30 @@ dummies_test_df <- data.frame(predict(dummies_test, newdata = test_df3))
 rf_train_finalmod <- rf_train$finalModel  
 
 # replace missing values in the test set with 0 
-dummies_test_df_na <- dummies_test_df %>% replace(is.na(.), 0) 
+dummy_test_df_rm.na <- dummy_test_df %>% replace(is.na(.), 0) 
 
 # predict on the test set 
-dummies_test_df_na$SalePrice_pred_rf <- predict(rf_train, dummies_test_df_na)  
-
+dummy_test_df_rm.na$SalePrice_pred <- predict(rf_train_finalmod,  # optimal Random Forest model 
+                                              dummy_test_df_rm.na)  # test set with replacing NAs 
 
 ```
 
 
+```{r saleprice test and train}
 
+# histogram plots 
+dummies_train_missing4 %>% 
+  ggplot(aes(x= pred_rf))+
+  geom_histogram(color = "blue", alpha = 0.1) +  # prediction in train set 
+  geom_histogram(aes(x = SalePrice), color = "yellow", alpha = 0.1) +  # truth in train set 
+  geom_histogram(data = dummy_test_df_rm.na, # prediction in test set  
+                 aes(x = SalePrice_pred), 
+                 color = "red", alpha = 0.1) +
+  scale_x_log10()  # log10 scale 
+
+
+
+```
 
 
 
