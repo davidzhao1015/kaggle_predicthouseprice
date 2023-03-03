@@ -174,7 +174,6 @@ The train set contains `r dim(train_df)[1]` observations and
 
 Find description of response and explanatory variables at the Kaggle [website](https://www.kaggle.com/competitions/house-prices-advanced-regression-techniques/data). 
 
-
 Import and inspect test set 
 
 ```{r test set}
@@ -198,7 +197,6 @@ The test set contains `r dim(test_df)[1]` observations and
 The target variable to predict is `SalePrice` - the property's sale price in dollars.  
 
 ```{r  EDA-response-var}
-
 # distribution of the response variable in the train set 
 ggplot(data = train_df, aes(x = SalePrice/1000)) +
         geom_histogram(binwidth = 10, fill = "royalblue", alpha = 0.8) +
@@ -228,7 +226,7 @@ sum(is.na(train_df$SalePrice))  # print 0
 
 ```{r numeric-var}
 
-# put Id column to row names 
+# put Id column to row names in train set 
 train_df_id  <- train_df %>% 
   mutate(Id = paste("W", Id, sep = "")) %>%  # add "W" next to Id 
   column_to_rownames("Id")
@@ -242,6 +240,7 @@ The train set has 79 independent variables plus one response variable for 1460 s
 
 
 ```{r}
+
 # identify numeric variables and variables with >10 unique values 
 var_unique <- sapply(train_df_id, function(x) length(unique(x))) %>% 
     as.data.frame() 
@@ -274,6 +273,7 @@ is_num_var2
 
 ```
 25 numeric variables other than the response variable `SalePrice`. 
+
 
 
 ```{r category variable}
@@ -522,7 +522,7 @@ The [website](https://topepo.github.io/caret/pre-processing.html#creating-dummy-
 
 Identify zero- and near-zero variance variables, or either. 
 
-```{r}
+```{r nzv}
 
 # near-zero variance 
 nzv <- nearZeroVar(dummies_train_df, saveMetrics = F) 
@@ -574,38 +574,47 @@ In this project, I used K-nearest neighbors to impute the missingness, if any.
 ```{r imputation}
 
 # distribution of missing values in data 
-miss_value <- sapply(dummies_train_nzv2, function(x) sum(is.na(x))) %>% as.data.frame() 
+miss_value <- sapply(dummies_train_nzv2, function(x) mean(is.na(x))) %>% as.data.frame() 
 
-colnames(miss_value) <- "missing_count"
+colnames(miss_value) <- "missing_percent"
 
 miss_value2 <- miss_value %>% 
   rownames_to_column("variable") %>% 
-  filter(missing_count !=0) %>% 
-  arrange(desc(missing_count)) 
+  mutate(missing_percent = round(missing_percent, 2)) %>% 
+  arrange(desc(missing_percent)) 
 
 # NA in independent variables in the train set 
 miss_value2
 
-# top 10 variables with NA 
+# top variables with NA 
 top10_var_missing <- miss_value2 %>% 
-  head(10) %>% 
-  pull(variable)
+  filter(missing_percent > 0.4) %>% 
+  pull(variable) 
 
 
-# ggplot bar plot recording by missing_count 
-ggplot(miss_value2, 
-       aes(x = reorder(variable, missing_count), 
-           y= missing_count)) +
-  geom_bar(stat = "identity", fill = "royalblue") + 
-  coord_flip()
-
-
-# drop top 10 variables with substantial missing values 
+# drop variables with substantial missing values 
 dummies_train_missing <- dummies_train_nzv2 %>% 
   select(-all_of(top10_var_missing)) 
 
-dim(dummies_train_missing)  # 90 variables left in the resulting train set 
+dim(dummies_train_missing)  # 92 variables left in the resulting train set 
 
+
+
+# ggplot bar plot for variables with missingness 
+miss_value2 %>% 
+  filter(missing_percent != 0) %>% 
+  ggplot(aes(x = reorder(variable, missing_percent),  # reorder variable by missing percentages  
+           y= missing_percent)) +
+  geom_bar(stat = "identity", fill = "royalblue") + 
+  coord_flip() +
+  ggtitle("Variables with missingness in the train set") +
+  labs(y ="Percentage", x= "")
+
+```
+
+
+
+```{r knn impute}
 
 # # apply k-nearest method to impute data 
 # impute_knn <- preProcess(dummies_train_missing,
@@ -619,7 +628,6 @@ dim(dummies_train_missing)  # 90 variables left in the resulting train set
 
 
 # I encountered an error when running the KNN impute method. I found a Stack Exchange post said that "the problem you run into is that knnImpute requires at least as many samples in your data without missing values as you have specified with the k parameter for the k-nearest-neighbors." 
-
 
 ```
 
@@ -716,9 +724,9 @@ Run PCA on the filtered variables in the train-set.
 
 set.seed(123)
 
-dummies_train_nzv3 <- dummies_train_nzv2 %>% replace(is.na(.), 0) # replace NA with 0 
+train_pca_rm.na <- dummies_train_missing %>% replace(is.na(.), 0) # replace NA with 0 
 
-pr.train <- prcomp(x = dummies_train_nzv3, scale =T, center = T)
+pr.train <- prcomp(x = train_pca_rm.na, scale =T, center = T) 
 
 summary(pr.train)
 
@@ -733,7 +741,7 @@ fviz_pca_biplot(pr.train,
                 repel = F,
                 col.ind = "grey",
                 label = "var",
-                select.var = list(contrib = 10)) # show top 10 variables
+                select.var = list(contrib = 10)) # show top 10 variables 
 
 ```
 
@@ -742,14 +750,14 @@ Extract loading from PCA analysis using `factoextra` package.
 ```{r PCA loadings}
 
 # # extract contribution of variables 
-pca_var <- factoextra::get_pca_var(pr.train)
+pca_var <- factoextra::get_pca_var(pr.train)  
 
 # top 10 variables that explain variations of data
 top_var_pca <- pca_var$contrib  %>%
   as.data.frame() %>%
   arrange(desc(abs(Dim.1))) %>%
   rownames_to_column("Variable") %>%
-  head(10) %>%
+  head(12) %>%
   pull(Variable)
 
 top_var_pca
@@ -762,7 +770,7 @@ top_var_pca
 ```{r univariate}
 
 # spearman correlation on 90 variables 
-res_num <- cor(dummies_train_missing, method = "spearman")
+res_num <- cor(dummies_train_missing) 
 
 colnames(res_num) <- 1:ncol(res_num) 
 
@@ -773,24 +781,21 @@ top_num_index <- res_num %>%
         mutate(row_index = 1:nrow(.)) %>%
         gather(key = "col_index", value = "rho", -c("row_index", "variable")) %>%
         filter(variable == "SalePrice") %>% 
-        filter(abs(rho) >= 0.5) %>% 
+        filter(abs(rho) >= 0.4) %>% 
         arrange(desc(abs(rho))) %>%
         pull(col_index) %>% 
         as.numeric()
 
-top_num_var <- rownames(res_num)[top_num_index]  # top variable names 
+top_univar <- rownames(res_num)[top_num_index]  # top variable names 
 
-top_num_var
+top_univar
 
 ```
 
 
-
-
 ### Train models 
 
-Set up resampling method. Use [k-fold cross validation](https://rpubs.com/cliex159/881990) strategy. 
-
+Set up re-sampling method. Use [k-fold cross validation](https://rpubs.com/cliex159/881990) strategy. 
 
 ```{r cross validation}
 
@@ -801,25 +806,23 @@ fitControl <- trainControl(method = "cv", # cross validation
 ```
 
 
-
 ```{r select predictors}
 
-# select some numeric variables 
-select_variables <- c("YearBuilt",
-                      "OverallQual",
-                      "SalePrice",  # response variable 
-                      "BsmtQual_TA",
-                      "YearRemodAdd",
-                      "ExterQual_Gd",
-                      "GarageArea",
-                      "FullBath_2",
-                      "GarageFinish_Unf",
-                      "OverallCond_5")
+# features derived from the univariate analysis 
+top_univar 
 
-# prepare the final train set 
+# features derived from PCA 
+top_var_pca 
+
+```
+
+
+```{r subset features}
+
+# subset important features from train set  
 dummies_train_missing2 <- 
   dummies_train_missing %>% 
-  select(all_of(select_variables)) 
+  select(all_of(top_univar))  
 
 # deal with missing values 
 dummies_train_missing3 <- dummies_train_missing2 %>% replace(is.na(.), 0)
@@ -836,7 +839,7 @@ Train models:
 
 ```{r train models}
 
-set.seed(123)
+set.seed(123)  # ensure reproducibility 
 
 # eXtreme Gradient Boosting - installing the package takes time 
 # xgb_train <- train(SalePrice ~ .,
@@ -906,49 +909,56 @@ Use different plots to evaluate models,
 
 ```{r plot models}
 
-# # add predicted data to the train set 
-# dummies_train_missing3$pred_lm <- predict(lm_train) # lm 
-# dummies_train_missing3$pred_glm <- predict(glm_train) # glm 
-# dummies_train_missing3$pred_gam <- predict(gam_train)  # gam  
-# dummies_train_missing3$pred_rf <- predict(rf_train)  # rf 
-# 
-# 
-# dummies_train_missing4 <- dummies_train_missing3 %>% 
-#   mutate(residual_lm = pred_lm - SalePrice) %>% 
-#   mutate(residual_glm = pred_glm - SalePrice) %>% 
-#   mutate(residual_gam = pred_gam - SalePrice) %>% 
-#   mutate(residual_rf = pred_rf - SalePrice) 
-# 
-# 
-# 
-# # prediction vs. truth plots 
-# pred_truth_df <- dummies_train_missing3 %>% 
-#   select(pred_lm, pred_glm, pred_gam, pred_rf, SalePrice) %>% 
-#   gather(key = "models", value = "prediction", -SalePrice) 
-# 
-# ggplot(pred_truth_df, aes(x= SalePrice, y= prediction, color = models)) + 
-#   geom_point() +
-#   geom_abline(slope = 1, intercept = 0, 
-#               linetype = "dashed", color = "royalblue", size = 1)+
-#   facet_wrap(vars(models))
-# 
-# 
-# # residual plot 
-# 
-# res_truth_df <- dummies_train_missing4 %>% 
-#   select(residual_lm, residual_glm, residual_gam, residual_rf, SalePrice) %>% 
-#   gather(key = "models", value = "residual", -SalePrice) %>% 
-#   mutate(model = str_sub(.$models, start = 10)) %>% 
-#   select(-models) 
-#   
-# 
-# ggplot(res_truth_df, aes(x=SalePrice, y= residual, color = model))+
-#   geom_point(alpha = 0.8) +
-#   geom_hline(yintercept = 0,
-#              linetype = "dashed", color = "royalblue", size = 1) +
-#   facet_wrap(vars(model))
-#   
+# copy the train set 
+dummies_train_missing4 <- dummies_train_missing3 
 
+# prediction on train set with 4 models 
+dummies_train_missing4$pred_lm <- predict(lm_train) # lm
+dummies_train_missing4$pred_glm <- predict(glm_train) # glm
+dummies_train_missing4$pred_gam <- predict(gam_train)  # gam
+dummies_train_missing4$pred_rf <- predict(rf_train)  # rf
+
+# calculate residuals 
+dummies_train_missing4 <- dummies_train_missing4 %>%
+  mutate(residual_lm = pred_lm - SalePrice) %>%
+  mutate(residual_glm = pred_glm - SalePrice) %>%
+  mutate(residual_gam = pred_gam - SalePrice) %>%
+  mutate(residual_rf = pred_rf - SalePrice)
+
+```
+
+
+```{r pred-truth plot}
+# prediction vs. truth plots
+pred_truth_df <- dummies_train_missing4 %>%
+  select(pred_lm, pred_glm, pred_gam, pred_rf, SalePrice) %>%
+  gather(key = "models", value = "prediction", -SalePrice)
+
+ggplot(pred_truth_df, aes(x= SalePrice, y= prediction, color = models)) +
+  geom_point() +
+  geom_abline(slope = 1, intercept = 0,
+              linetype = "dashed", color = "royalblue", linewidth = 1)+
+  facet_wrap(vars(models)) +
+  ggtitle("Prediction vs. groud truth in the train set")
+
+```
+
+
+
+```{r residual plot}
+
+# residual plot 
+res_truth_df <- dummies_train_missing4 %>%
+  select(residual_lm, residual_glm, residual_gam, residual_rf, SalePrice) %>%
+  gather(key = "models", value = "residual", -SalePrice) %>%
+  mutate(model = str_sub(.$models, start = 10)) %>%
+  select(-models)
+
+ggplot(res_truth_df, aes(x=SalePrice, y= residual, color = model))+
+  geom_point(alpha = 0.8) +
+  geom_hline(yintercept = 0,
+             linetype = "dashed", color = "royalblue", size = 1) +
+  facet_wrap(vars(model))
 
 ```
 
@@ -957,17 +967,16 @@ Draw the gain curves using `WVPlots` [package](https://www.rdocumentation.org/pa
 
 ```{r gain curves}
 
-# random forest 
-# GainCurvePlot(dummies_train_missing3, "pred_rf", "SalePrice", "Random Forest model for home price")   
-
-# 
-# # lm 
-# GainCurvePlot(dummies_train_missing3, "pred_lm", "SalePrice", "Linear model for home price")  
-
+# random forest - gain curve 
+GainCurvePlot(dummies_train_missing4, 
+              "pred_rf", 
+              "SalePrice", 
+              "Random Forest model for home price")
 
 ```
 
 In the gain curve, the x-axis is sale prices in model-sorted order (decreasing). The y-axis is the fraction of total accumulatd  sale price. The wizard curve represents the perfect model. 
+
 
 ### Select the best model
 
@@ -979,34 +988,34 @@ Apply `postResample` function in caret package to estimate measures of model per
 
 ```{r model performance metrics}
 
-# rf_perf <- postResample(pred = dummies_train_missing3$pred_rf, obs = dummies_train_missing3$SalePrice) %>% as.data.frame() # rf 
-# 
-# lm_perf <- postResample(pred = dummies_train_missing3$pred_lm, obs = dummies_train_missing3$SalePrice) %>% as.data.frame() # lm 
-# 
-# gam_perf <-  postResample(pred = dummies_train_missing3$pred_gam, obs = dummies_train_missing3$SalePrice) %>% as.data.frame()  # gam 
-# 
-# glm_perf <-  postResample(pred = dummies_train_missing3$pred_glm, obs = dummies_train_missing3$SalePrice) %>% as.data.frame() # glm 
-# 
-# 
-# merg_perf <- data.frame(rf = rf_perf,
-#            lm = lm_perf,
-#            gam = gam_perf,
-#            glm = glm_perf) 
-# 
-# colnames(merg_perf) <- c("rf", "lm", "gam", "glm")
-# 
-# merg_perf <- merg_perf %>% 
-#   rownames_to_column("measure") 
-# 
-# 
-# merg_perf <- merg_perf %>%
-#   gather(key = "model", value = "performance", -measure) %>% 
-#   mutate(performance = round(performance, 2)) 
-# 
-# # bar plot to compare single value by measures 
-# ggplot(merg_perf, aes(x = model, y = performance)) +
-#   geom_bar(aes(fill = model), stat = "identity", position = "dodge") +
-#   facet_wrap(vars(measure), scales = "free_y") 
+rf_perf <- postResample(pred = dummies_train_missing4$pred_rf, obs = dummies_train_missing4$SalePrice) %>% as.data.frame() # rf
+
+lm_perf <- postResample(pred = dummies_train_missing4$pred_lm, obs = dummies_train_missing4$SalePrice) %>% as.data.frame() # lm
+
+gam_perf <-  postResample(pred = dummies_train_missing4$pred_gam, obs = dummies_train_missing4$SalePrice) %>% as.data.frame()  # gam
+
+glm_perf <-  postResample(pred = dummies_train_missing4$pred_glm, obs = dummies_train_missing4$SalePrice) %>% as.data.frame() # glm
+
+
+# merge above data frames 
+merg_perf <- data.frame(rf = rf_perf,
+                        lm = lm_perf,
+                        gam = gam_perf,
+                        glm = glm_perf)
+
+colnames(merg_perf) <- c("rf", "lm", "gam", "glm")  # rename columns 
+
+merg_perf <- merg_perf %>%
+  rownames_to_column("measure")  # row to column  
+
+merg_perf <- merg_perf %>%
+  gather(key = "model", value = "performance", -measure) %>%
+  mutate(performance = round(performance, 2))
+
+# bar plot to compare single value by measures
+ggplot(merg_perf, aes(x = model, y = performance)) +
+  geom_bar(aes(fill = model), stat = "identity", position = "dodge") +
+  facet_wrap(vars(measure), scales = "free_y")
 
 
 
@@ -1025,9 +1034,22 @@ test_df2 <- test_df %>%
         mutate(Id = paste("W", as.character(Id), sep = "")) %>%  # keep id as character variables 
         column_to_rownames("Id")  
 
+# numeric variables 
+test_df_num <- test_df2[ ,is_num_var2]  
+
+# convert character variables to factors 
+test_df_fact  <- test_df2 %>% 
+  dplyr::select(all_of(is_fact_var)) %>%   # subset 54 non-numeric variables and a response variable 
+  mutate_all(., as.factor) # convert character variables to factors 
+
+# combine numeric variables and factors 
+test_df_comb <- cbind(test_df_fact, test_df_num)  
+
+
+
 
 # double-check if any factor only has one level 
-factor_test <- sapply(test_df2, function(x) length(levels(x))) %>% 
+factor_test <- sapply(test_df_comb, function(x) length(levels(x))) %>% 
   as.data.frame() %>% 
   rownames_to_column("variable") 
 
@@ -1037,24 +1059,19 @@ factor_test %>%
   filter(level == 1) %>% 
   pull(variable)
 
-
 # drop the factor, 'Utilities'
-test_df3 <- test_df2 %>% 
+test_df_comb2 <- test_df_comb %>% 
   select(-Utilities) 
 
 
-# convert factor variables into dummy variables (i.e., one-hot-encoding)
-dummies_test <- dummyVars(~.,   # formula excluding a one-level factor 
-                          data = test_df3, 
-                          fullRank = TRUE,
-                          sep = "_") 
 
-dummies_test # 42 factors
+# create dummy variables 
+dummy_test <- dummyVars(~., data = test_df_comb2,
+                           fullRank = TRUE,
+                           sep = "_")  
 
-
-# dummy variables created 
-dummies_test_df <- data.frame(predict(dummies_test, newdata = test_df3)) 
-
+dummy_test_df <- data.frame(predict(dummy_test, 
+                                    newdata = test_df_comb2)) 
 
 ```
 
@@ -1063,41 +1080,34 @@ dummies_test_df <- data.frame(predict(dummies_test, newdata = test_df3))
 
 ```{r predict on test set}
 
-
 # extract the final model of Random forest 
 rf_train_finalmod <- rf_train$finalModel  
 
 # replace missing values in the test set with 0 
-dummies_test_df_na <- dummies_test_df %>% replace(is.na(.), 0) 
+dummy_test_df_rm.na <- dummy_test_df %>% replace(is.na(.), 0) 
 
 # predict on the test set 
-dummies_test_df_na$SalePrice_pred_rf <- predict(rf_train, dummies_test_df_na)  
-
-
+dummy_test_df_rm.na$SalePrice_pred <- predict(rf_train_finalmod,  # optimal Random Forest model 
+                                              dummy_test_df_rm.na)  # test set with replacing NAs 
 
 ```
 
 
-<!-- Tuning model parameters to improve performance -->
+```{r saleprice test and train}
+
+# histogram plots 
+dummies_train_missing4 %>% 
+  ggplot(aes(x= pred_rf))+
+  geom_histogram(color = "blue", alpha = 0.1) +  # prediction in train set 
+  geom_histogram(aes(x = SalePrice), color = "yellow", alpha = 0.1) +  # truth in train set 
+  geom_histogram(data = dummy_test_df_rm.na, # prediction in test set  
+                 aes(x = SalePrice_pred), 
+                 color = "red", alpha = 0.1) +
+  scale_x_log10()  # log10 scale 
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+```
 
 
 
