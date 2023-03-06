@@ -635,9 +635,9 @@ miss_value2 %>%
 
 ### Feature selection 
 
-The [tutorial](https://topepo.github.io/caret/feature-selection-using-univariate-filters.html) of caret package provides an overview of various mehtods for feature selection:
+The [tutorial](https://topepo.github.io/caret/feature-selection-using-univariate-filters.html) of caret package provides an overview of various methods for feature selection:
 - Wrapper 
-  - recursive feature eliminaiton 
+  - recursive feature elimination 
   - genetic algorithms 
   - simulated annealing 
 - Filter 
@@ -777,8 +777,8 @@ top_var_pca
 
 ```{r univariate}
 
-# spearman correlation on 90 variables 
-res_num <- cor(dummies_train_missing) 
+# pair-wise correlation among 90 variables 
+res_num <- cor(dummies_train_missing)  # pearson correlation method 
 
 colnames(res_num) <- 1:ncol(res_num) 
 
@@ -826,6 +826,94 @@ sbf_vars <- rfWithinFilter$variables[1]  %>%
 
 
 ```
+
+
+#### Feature selection - Recursive feature elimination (wrapper filter)
+
+Try alternative ways to select informative features but not include them all. 
+
+Looking for an optimal combination of variables, I try the feature selection method, Recursive Feature Elimination. The caret [tutorial](https://topepo.github.io/caret/recursive-feature-elimination.html) talks more details about this method. 
+
+
+```{r rfe}
+
+# linear regression 
+
+set.seed(123)
+
+subsets <- c(1:5, 10, 15, 20, 25)
+
+ctrl_rfe <- rfeControl(functions = lmFuncs,  # linear regression 
+                       method = "repeatedcv",   # resampling 
+                       repeats = 5,
+                       verbose = FALSE) 
+
+lmProfile <- rfe(predictors, # predictors candidates
+                 dummies_train_missing$SalePrice,  # response variable 
+                 sizes = subsets,
+                 rfeControl = ctrl_rfe
+                 )
+
+lmProfile
+
+caret::predictors(lmProfile)  # 91 variables 
+
+# plot 
+trellis.par.set(caretTheme())
+plot(lmProfile, type = c("g", "o"))
+
+
+```
+
+RMSE keeps decreasing with increasing number of variable. There is an "elbow" around 20 variables. 
+
+
+Run the RFE algorithm on Random Forest model 
+
+```{r rfe-rf}
+
+# customize a function to implement Random Forest in RFE algorithm 
+rfRFE <-  list(summary = defaultSummary,
+               fit = function(x, y, first, last, ...){
+                 library(randomForest)
+                 randomForest(x, y, importance = first, ...)
+                 },
+               pred = function(object, x)  predict(object, x),
+               rank = function(object, x, y) {
+                 vimp <- varImp(object)
+                 vimp <- vimp[order(vimp$Overall,decreasing = TRUE),,drop = FALSE]
+                 vimp$var <- rownames(vimp)                  
+                 vimp
+                 },
+               selectSize = pickSizeBest,
+               selectVar = pickVars)
+
+
+# change parameters in ctrl_rfe
+ctrl_rfe$functions <- rfRFE  # random forest 
+
+ctrl_rfe$returnResamp <- "all"  # save all the re-sampling results across subset sizes 
+
+set.seed(123)
+
+rfProfile <- rfe(predictors, # predictors candidates
+                 dummies_train_missing$SalePrice,  # response variable  
+                 sizes = subsets, 
+                 rfeControl = ctrl_rfe)
+
+
+rfProfile
+
+
+# plot
+trellis.par.set(caretTheme())
+plot(rfProfile, type = c("g", "o"))
+
+
+
+```
+
+
 ### Train models 
 
 Set up re-sampling method. Use [k-fold cross validation](https://rpubs.com/cliex159/881990) strategy. 
