@@ -132,6 +132,10 @@ library(h2o) # gradient boosting machines
 library(WVPlots)  # draw gain curve plots 
 library(xgboost)  # eXtreme gradient boosting 
 
+library(devtools)
+# install_github("cran/foba")
+library(foba)
+
 ```
 
 ### Import data sets
@@ -856,11 +860,11 @@ lmProfile <- rfe(predictors, # predictors candidates
 
 lmProfile
 
-caret::predictors(lmProfile)  # 91 variables 
-
 # plot 
 trellis.par.set(caretTheme())
 plot(lmProfile, type = c("g", "o"))
+
+ref_lm <- caret::predictors(lmProfile)[1:20]
 
 
 ```
@@ -901,14 +905,49 @@ rfProfile <- rfe(predictors, # predictors candidates
                  sizes = subsets, 
                  rfeControl = ctrl_rfe)
 
-
 rfProfile
 
 
-# plot
-trellis.par.set(caretTheme())
-plot(rfProfile, type = c("g", "o"))
+```
 
+```{r plot-ref-rf1}
+
+# plot1 and 2 
+trellis.par.set(caretTheme())
+plot1 <- plot(rfProfile, type = c("g", "o"))
+plot2 <- plot(rfProfile, type = c("g", "o"), metric = "Rsquared")
+print(plot1, split=c(1,1,1,2), more=TRUE)
+print(plot2, split=c(1,2,1,2))
+
+
+# extract predictors 
+rfe_RF_var <- predictors(rfProfile)[1:15]
+
+rfe_RF_var  # print variable names 
+
+
+```
+
+There is an elbow around 15 variables. Then I pick top 15 variables to maintain RMSE or R-squared metrics. 
+
+
+
+
+```{r plots-rfe-rf2}
+
+# plot3 and 4 
+plot3 <- xyplot(rfProfile, 
+                type = c("g", "p", "smooth"), 
+                ylab = "RMSE CV Estimates")
+
+plot4 <- densityplot(rfProfile, 
+                     subset = Variables < 5, 
+                     adjust = 1.25, 
+                     as.table = TRUE, 
+                     xlab = "RMSE CV Estimates", 
+                     pch = "|")
+print(plot3, split=c(1,1,1,2), more=TRUE)
+print(plot4, split=c(1,2,1,2))
 
 
 ```
@@ -935,8 +974,16 @@ top_univar
 # features derived from PCA 
 top_var_pca 
 
-# features derived from sbf - univariate filtering 
+# features derived from sbf - univariate filtering (the best variables for random forest)
 sbf_vars 
+
+
+# features derived from REF-linear regression 
+ref_lm
+
+
+# features derived from REF-Random Forest 
+rfe_RF_var 
 
 ```
 
@@ -955,24 +1002,83 @@ head(dummies_train_missing3)
 
 ```
 
-Train models:
-- Generalized linear model 
-- Linear regression 
-- GAM model (Generalized additive model)
-- Random Forest 
+
+#### Pick algorithms 
+
+Select the most diverse ML algorithms, using maximum dissimilarity sampling. Follow the codes and data in the [caret tutorial](https://topepo.github.io/caret/models-clustered-by-tag-similarity.html)
+
+```{r pick diverse models}
+
+# Import the survey data containing model tags 
+tag <- read.csv("tag_data.csv", row.names = 1) 
+tag <- as.matrix(tag)
+
+
+# Select only models for regression
+regModels <- tag[tag[,"Regression"] == 1,]
+
+all <- 1:nrow(regModels)
+
+# Seed the analysis with the generalized linear model 
+start <- grep("(rf)", rownames(regModels), fixed = TRUE)
+pool <- all[all != start]
+
+## Select 4 model models by maximizing the Jaccard
+## dissimilarity between sets of models
+nextMods <- maxDissim(regModels[start,,drop = FALSE], 
+                      regModels[pool, ], 
+                      method = "Jaccard",
+                      n = 4)
+
+rownames(regModels)[c(start, nextMods)]
+
+```
+Ultimately, I will try the above five algorithms other than `linear regression` and `GAM` model. 
+
 
 ```{r train models, message=FALSE, results='hide'}
 
 set.seed(123)  # ensure reproducibility 
 
 
-# Generalized linear model
+# Negative Binomial Generalized Linear Model
 glm_train <- train(SalePrice ~ .,
                    data = dummies_train_missing3,
-                   method = "glm",
+                   method = "glm.nb",
                    trControl = fitControl)
 
 glm_train # train model
+
+
+
+# Ridge Regression with Variable Selection 
+foba_train <- train(SalePrice ~ .,
+                   data = dummies_train_missing3,
+                   method = "foba",
+                   trControl = fitControl)  
+
+foba_train  
+
+
+
+# Relevance Vector Machines with Linear Kernel 
+# rvmLinear_train <- train(SalePrice ~ .,
+#                    data = dummies_train_missing3,
+#                    method = "rvmLinear",
+#                    trControl = fitControl)  
+# 
+# rvmLinear_train 
+
+
+
+# Bayesian Regularized Neural Networks
+brnn_train <- train(SalePrice ~ .,
+                   data = dummies_train_missing3,
+                   method = "brnn",
+                   trControl = fitControl)  
+
+brnn_train
+
 
 
 # Linear regression 
@@ -982,6 +1088,7 @@ lm_train <- train(SalePrice ~ .,
                    trControl = fitControl)
 
 lm_train  # model info
+
 
 
 # GAM 
@@ -1000,8 +1107,7 @@ rf_train <- train(SalePrice ~ .,
                    method = "rf",
                    trControl = fitControl) 
 
-
-rf_train # model information  
+rf_train # model information   
 
 
 # eXtreme Gradient boosting   - takes very long time to run 
@@ -1032,13 +1138,18 @@ dummies_train_missing4$pred_lm <- predict(lm_train) # lm
 dummies_train_missing4$pred_glm <- predict(glm_train) # glm
 dummies_train_missing4$pred_gam <- predict(gam_train)  # gam
 dummies_train_missing4$pred_rf <- predict(rf_train)  # rf
+dummies_train_missing4$pred_foba <- predict(foba_train)  # foba 
+dummies_train_missing4$pred_brnn <- predict(brnn_train)  # brnn 
+
 
 # calculate residuals 
 dummies_train_missing4 <- dummies_train_missing4 %>%
   mutate(residual_lm = pred_lm - SalePrice) %>%
   mutate(residual_glm = pred_glm - SalePrice) %>%
   mutate(residual_gam = pred_gam - SalePrice) %>%
-  mutate(residual_rf = pred_rf - SalePrice)
+  mutate(residual_rf = pred_rf - SalePrice) %>% 
+  mutate(residual_foba = pred_foba - SalePrice) %>% 
+  mutate(residual_brnn = pred_brnn - SalePrice)
 
 ```
 
@@ -1046,7 +1157,7 @@ dummies_train_missing4 <- dummies_train_missing4 %>%
 ```{r pred-truth plot}
 # prediction vs. truth plots
 pred_truth_df <- dummies_train_missing4 %>%
-  select(pred_lm, pred_glm, pred_gam, pred_rf, SalePrice) %>%
+  select(pred_lm, pred_glm, pred_gam, pred_rf, pred_foba, pred_brnn, SalePrice) %>%
   gather(key = "models", value = "prediction", -SalePrice)
 
 ggplot(pred_truth_df, aes(x= SalePrice, y= prediction, color = models)) +
@@ -1064,7 +1175,7 @@ ggplot(pred_truth_df, aes(x= SalePrice, y= prediction, color = models)) +
 
 # residual plot 
 res_truth_df <- dummies_train_missing4 %>%
-  select(residual_lm, residual_glm, residual_gam, residual_rf, SalePrice) %>%
+  select(residual_lm, residual_glm, residual_gam, residual_rf, residual_foba, residual_brnn, SalePrice) %>%
   gather(key = "models", value = "residual", -SalePrice) %>%
   mutate(model = str_sub(.$models, start = 10)) %>%
   select(-models)
@@ -1097,7 +1208,7 @@ In the gain curve, the x-axis is sale prices in model-sorted order (decreasing).
 
 Apply `postResample` function in caret package to estimate measures of model performance, including
 
-- RMSE
+- RMSE * (Kaggle evaluation metric)
 - Rsquared 
 - MAE 
 
@@ -1111,14 +1222,20 @@ gam_perf <-  postResample(pred = dummies_train_missing4$pred_gam, obs = dummies_
 
 glm_perf <-  postResample(pred = dummies_train_missing4$pred_glm, obs = dummies_train_missing4$SalePrice) %>% as.data.frame() # glm
 
+foba_perf <- postResample(pred = dummies_train_missing4$pred_foba, obs = dummies_train_missing4$SalePrice) %>% as.data.frame() # foba
+
+brnn_perf <- postResample(pred = dummies_train_missing4$pred_brnn, obs = dummies_train_missing4$SalePrice) %>% as.data.frame() # brnn 
+
 
 # merge above data frames 
 merg_perf <- data.frame(rf = rf_perf,
                         lm = lm_perf,
                         gam = gam_perf,
-                        glm = glm_perf)
+                        glm = glm_perf,
+                        brnn = brnn_perf,
+                        foba = foba_perf)
 
-colnames(merg_perf) <- c("rf", "lm", "gam", "glm")  # rename columns 
+colnames(merg_perf) <- c("rf", "lm", "gam", "glm", "brnn", "foba")  # rename columns 
 
 merg_perf <- merg_perf %>%
   rownames_to_column("measure")  # row to column  
@@ -1204,6 +1321,22 @@ dummy_test_df_rm.na <- dummy_test_df %>% replace(is.na(.), 0)
 # predict on the test set 
 dummy_test_df_rm.na$SalePrice_pred <- predict(rf_train_finalmod,  # optimal Random Forest model 
                                               dummy_test_df_rm.na)  # test set with replacing NAs 
+
+
+
+# export final results based on test set 
+head(dummy_test_df_rm.na)
+
+submission_pred <- dummy_test_df_rm.na %>% 
+  rownames_to_column("Id") %>% 
+  select(Id, SalePrice = SalePrice_pred) %>% 
+  mutate(Id = str_sub(Id, start=2)) %>% 
+  mutate(SalePrice = round(SalePrice, 4))  # round to 4 decimal point 
+
+write.csv(submission_pred, 
+          file = "submission_davidxzhao.csv",
+          row.names = F,  # without row labels 
+          quote = F) # without quote 
 
 ```
 
